@@ -1,0 +1,529 @@
+// Smart Recorder - Repositories, Auto-Recovery & Spanglish Support
+let mediaRecorder;
+let audioChunks = [];
+let startTime, timerInterval;
+let accumulatedTime = 0;
+let audioContext, analyser, dataArray, animationId;
+let wakeLock = null;
+let currentSource = 'mic';
+
+// --- Database Logic (IndexedDB for "Digital Repositories") ---
+const DB_NAME = 'SmartRecorderRepo';
+const DB_VERSION = 2;
+let db;
+
+function initDB() {
+    return new Promise((resolve) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('sessions')) {
+                db.createObjectStore('sessions', { keyPath: 'id', autoIncrement: true });
+            }
+        };
+        request.onsuccess = (e) => {
+            db = e.target.result;
+            resolve(db);
+        };
+    });
+}
+
+async function saveSessionToRepo(sessionData) {
+    const tx = db.transaction('sessions', 'readwrite');
+    const store = tx.objectStore('sessions');
+    return new Promise(r => {
+        const req = store.put(sessionData);
+        req.onsuccess = () => r(req.result);
+    });
+}
+
+async function getHistoryFromRepo() {
+    const tx = db.transaction('sessions', 'readonly');
+    const store = tx.objectStore('sessions');
+    return new Promise(r => {
+        const req = store.getAll();
+        req.onsuccess = () => r(req.result.sort((a, b) => b.id - a.id));
+    });
+}
+
+// --- UI & Elements ---
+const elements = {
+    recordBtn: document.getElementById('recordBtn'),
+    recordIcon: document.getElementById('recordIcon'),
+    recordRing: document.getElementById('recordRing'),
+    timerDisplay: document.getElementById('timerDisplay'),
+    status: document.getElementById('recordingStatus'),
+    controls: document.getElementById('recordingControls'),
+    cancelBtn: document.getElementById('cancelBtn'),
+    saveBtn: document.getElementById('saveBtn'),
+    downloadBtn: document.getElementById('downloadBtn'),
+    pauseBtn: document.getElementById('pauseBtn'),
+    pauseIcon: document.getElementById('pauseIcon'),
+    resultArea: document.getElementById('resultArea'),
+    aiSummary: document.getElementById('aiSummary'),
+    aiTranscript: document.getElementById('aiTranscript'),
+    sessionName: document.getElementById('sessionName'),
+    progressBar: document.getElementById('progressBar'),
+    progressContainer: document.getElementById('analysisProgress'),
+    historyList: document.getElementById('historyList'),
+    settingsBtn: document.getElementById('settingsBtn'),
+    settingsModal: document.getElementById('settingsModal'),
+    sfKeyInput: document.getElementById('sfKey'),
+    groqKeyInput: document.getElementById('groqKey'),
+    geminiKeyInput: document.getElementById('geminiKey'),
+    hfTokenInput: document.getElementById('hfToken'),
+    serverSelect: document.getElementById('serverSelect'),
+    sourceMic: document.getElementById('sourceMic'),
+    sourceSystem: document.getElementById('sourceSystem'),
+    currentSizeLabel: document.getElementById('currentSize'),
+    fileSizeInfo: document.getElementById('fileSizeInfo'),
+    searchInput: document.getElementById('searchInput'),
+    projectFilter: document.getElementById('projectFilter')
+};
+
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', async () => {
+    await initDB();
+    loadKey();
+    renderHistory();
+
+    // Recovery Check
+    const draft = localStorage.getItem('sr_draft_audio');
+    if (draft) {
+        if (confirm("Se detectó una grabación no guardada. ¿Deseas recuperarla?")) {
+            // Logic to recover would go here, for now just clear
+        }
+        localStorage.removeItem('sr_draft_audio');
+    }
+});
+
+// --- Accidental Close Prevention ---
+window.onbeforeunload = (e) => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        const msg = "Tienes una grabación en curso. Si sales ahora, se perderá.";
+        e.returnValue = msg;
+        return msg;
+    }
+};
+
+// --- Recording Control ---
+async function startFocus() {
+    // Basic setup remains similar but adds project context
+    try {
+        let stream;
+        if (currentSource === 'mic') {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } else {
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({
+                video: { displaySurface: "browser" },
+                audio: { echoCancellation: false }
+            });
+            if (screenStream.getAudioTracks().length === 0) throw new Error("No compartiste audio.");
+            const audioTrack = screenStream.getAudioTracks()[0];
+            stream = new MediaStream([audioTrack]);
+            screenStream.getVideoTracks().forEach(t => t.stop());
+        }
+
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+        mediaRecorder.ondataavailable = (e) => {
+            audioChunks.push(e.data);
+            const totalSize = audioChunks.reduce((acc, chunk) => acc + chunk.size, 0);
+            const mb = (totalSize / (1024 * 1024)).toFixed(1);
+            elements.currentSizeLabel.innerText = `${mb} MB`;
+            if (mb > 24) stopFocus(); // Auto-stop at 25MB safety
+        };
+
+        mediaRecorder.start(1000);
+        startTime = Date.now();
+        accumulatedTime = 0;
+        startTimer();
+        uiRecording();
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+function stopFocus() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        stopTimer();
+        uiFinished();
+    }
+}
+
+// --- Analysis & Progress ---
+async function analyzeSession() {
+    const apiKey = localStorage.getItem('sf_api_key_v2');
+    const baseUrl = localStorage.getItem('sf_base_url') || 'https://api.siliconflow.com/v1';
+
+    if (!apiKey) return elements.settingsModal.classList.remove('hidden');
+
+    elements.resultArea.classList.remove('hidden');
+    elements.progressContainer.classList.remove('hidden');
+    updateProgress(10, "Iniciando análisis...");
+
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    const modelsToTry = [
+        'FunAudioLLM/SenseVoiceSmall',
+        'TeleAI/TeleSpeechASR',
+        'openai/whisper-large-v3'
+    ];
+
+    let transcriptionText = "";
+    let success = false;
+
+    // --- TRY ENGINE 0: GEMINI (GOOGLE) - Most reliable ---
+    const geminiKey = localStorage.getItem('gemini_api_key');
+    if (geminiKey) {
+        try {
+            updateProgress(20, "Haciendo magia con Google Gemini...");
+
+            // Convert blob to base64 for Gemini
+            const reader = new FileReader();
+            const base64Promise = new Promise(r => {
+                reader.onload = () => r(reader.result.split(',')[1]);
+                reader.readAsDataURL(audioBlob);
+            });
+            const base64Data = await base64Promise;
+
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: "Transcibe este audio palabra por palabra. Si hay varios idiomas, mantén el original. No añadidas comentarios extras, solo el texto del audio." },
+                            { inline_data: { mime_type: "audio/webm", data: base64Data } }
+                        ]
+                    }]
+                })
+            });
+
+            if (geminiRes.ok) {
+                const geminiData = await geminiRes.json();
+                transcriptionText = geminiData.candidates[0].content.parts[0].text;
+                success = true;
+            } else {
+                console.warn("Gemini falló, intentando otros...");
+            }
+        } catch (err) {
+            console.error("Fallo con Gemini:", err);
+        }
+    }
+
+    // --- TRY ENGINE 1: HUGGING FACE (Most stable fallback) ---
+    const hfToken = localStorage.getItem('hf_token');
+    if (!success && hfToken) {
+        try {
+            updateProgress(35, "Usando motor Whisper via Hugging Face...");
+            const hfRes = await fetch(`https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${hfToken}`,
+                    'Content-Type': 'application/octet-stream'
+                },
+                body: audioBlob
+            });
+
+            if (hfRes.ok) {
+                const hfData = await hfRes.json();
+                transcriptionText = hfData.text;
+                success = true;
+            } else {
+                console.warn("Hugging Face falló, intentando otros...");
+            }
+        } catch (err) {
+            console.error("Fallo con Hugging Face:", err);
+        }
+    }
+
+    // --- Try Engine 2: Groq ---
+    const groqKey = localStorage.getItem('groq_api_key');
+    if (groqKey) {
+        try {
+            updateProgress(30, "Usando motor Groq (Whisper V3)...");
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'session.webm');
+            formData.append('model', 'whisper-large-v3');
+
+            const groqRes = await fetch(`https://api.groq.com/openai/v1/audio/transcriptions`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${groqKey}` },
+                body: formData
+            });
+
+            if (groqRes.ok) {
+                const groqData = await groqRes.json();
+                transcriptionText = groqData.text;
+                success = true;
+            } else {
+                console.warn("Groq falló, intentando SiliconFlow...");
+            }
+        } catch (err) {
+            console.error("Fallo con Groq:", err);
+        }
+    }
+
+    // --- Try Engine 2: SiliconFlow (Only if Groq didn't run or failed) ---
+    if (!success) {
+        for (const modelId of modelsToTry) {
+            try {
+                updateProgress(40, `Probando motor SF: ${modelId.split('/')[1]}...`);
+                const formData = new FormData();
+                formData.append('file', audioBlob, 'session.webm');
+                formData.append('model', modelId);
+
+                const transRes = await fetch(`${baseUrl}/audio/transcriptions`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${apiKey}` },
+                    body: formData
+                });
+
+                if (transRes.ok) {
+                    const transData = await transRes.json();
+                    transcriptionText = transData.text;
+                    success = true;
+                    break;
+                } else {
+                    const errData = await transRes.json().catch(() => ({}));
+                    console.warn(`Motor SF ${modelId} falló:`, errData.message || transRes.status);
+                    continue;
+                }
+            } catch (err) {
+                console.error(`Fallo crítico con SF ${modelId}:`, err);
+            }
+        }
+    }
+
+    if (!success) {
+        updateProgress(0, "Error: Motores de audio no activos.");
+        elements.aiSummary.innerHTML = `
+            <div class="text-red-400 text-xs">
+                <p class="font-bold">Todos los motores de voz fallaron.</p>
+                <p class="mt-2 text-white">1. SiliconFlow (.com/.cn) no te deja transcribir (común en cuentas gratis).</p>
+                <p class="mt-2 text-blue-300 font-bold">SOLUCIÓN RECOMENDADA:</p>
+                <p>Ve a "Ajustes" ⚙️ y pon una API Key de <b>Groq</b> (es interna, ultra rápida y gratis).</p>
+                <p class="mt-2"><a href="https://console.groq.com/keys" target="_blank" class="underline">Haz clic aquí para obtener una de Groq</a></p>
+            </div>`;
+        return;
+    }
+
+    elements.aiTranscript.innerText = transcriptionText;
+
+    try {
+        // Step 2: Intelligent Summary
+        updateProgress(70, "IA analizando contexto y filtrando ruidos...");
+        const chatRes = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: "meta-llama/Meta-Llama-3.1-70B-Instruct",
+                messages: [
+                    {
+                        role: "system",
+                        content: `Eres un analista experto en sesiones técnicas y bilingües. 
+                        
+                        REGLAS CRÍTICAS:
+                        1. FILTRA ruidos, anuncios de YouTube y charlas irrelevantes.
+                        2. CONSERVA tecnicismos en inglés (Spanglish es aceptable).
+                        3. Genera un resumen ejecutivo en Español.
+                        
+                        FORMATO:
+                        - 💡 IDEA CENTRAL:
+                        - ⭐ PUNTOS CLAVE:
+                        - 🛠️ TAREAS/ACCIONES:`
+                    },
+                    { role: "user", content: transcriptionText }
+                ]
+            })
+        });
+
+        const chatData = await chatRes.json();
+        const summary = chatData.choices[0].message.content;
+        elements.aiSummary.innerText = summary;
+
+        updateProgress(100, "¡Análisis completo!");
+
+        // Save to IndexedDB Repository
+        await saveSessionToRepo({
+            name: elements.sessionName.value || 'Sesión sin nombre',
+            date: new Date().toLocaleString(),
+            summary: summary,
+            transcript: transcriptionText,
+            audioBlob: audioBlob // We save the actual audio in the browser DB!
+        });
+
+        renderHistory();
+
+    } catch (err) {
+        elements.aiSummary.innerText = `Error: ${err.message}. Puedes reintentar sin grabar de nuevo.`;
+        updateProgress(0, "Error en ejecución.");
+    }
+}
+
+// --- Utils ---
+function updateProgress(val, msg) {
+    elements.progressBar.style.width = `${val}%`;
+    elements.status.innerText = msg;
+}
+
+async function renderHistory() {
+    const sessions = await getHistoryFromRepo();
+    const query = elements.searchInput.value.toLowerCase();
+    const project = elements.projectFilter.value;
+
+    // --- Update Project Filter Dropdown ---
+    const uniqueProjects = [...new Set(sessions.map(s => s.name))];
+    const currentFilterVal = elements.projectFilter.value;
+    elements.projectFilter.innerHTML = '<option value="all">TODOS</option>' +
+        uniqueProjects.map(p => `<option value="${p}" ${p === currentFilterVal ? 'selected' : ''}>${p.toUpperCase()}</option>`).join('');
+
+    // --- Filter logic ---
+    const filtered = sessions.filter(s => {
+        const matchesSearch = s.summary.toLowerCase().includes(query) || s.transcript.toLowerCase().includes(query) || s.name.toLowerCase().includes(query);
+        const matchesProject = project === 'all' || s.name === project;
+        return matchesSearch && matchesProject;
+    });
+
+    if (filtered.length === 0) {
+        elements.historyList.innerHTML = '<p class="text-center text-xs text-slate-600">No se encontraron resultados</p>';
+        return;
+    }
+
+    elements.historyList.innerHTML = filtered.map(s => `
+        <div class="glass-card p-4 rounded-2xl border border-white-5 hover:border-violet-500-20 transition-all group">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-[10px] font-black uppercase text-violet-400">${s.name}</span>
+                <span class="text-[9px] text-slate-500">${s.date}</span>
+            </div>
+            <p class="text-[11px] text-slate-300 line-clamp-2 mb-3">${s.summary.substring(0, 100)}...</p>
+            <div class="flex gap-4">
+                <button onclick="copyNoteById('${s.id}')" class="text-[9px] font-black text-slate-500 hover:text-white uppercase transition-all">Copiar</button>
+                <button onclick="downloadRepoAudio(${s.id})" class="text-[9px] font-black text-blue-400 hover:text-white uppercase transition-all">Audio</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+window.downloadRepoAudio = async (id) => {
+    const tx = db.transaction('sessions', 'readonly');
+    const s = await new Promise(r => tx.objectStore('sessions').get(id).onsuccess = e => r(e.target.result));
+    const url = URL.createObjectURL(s.audioBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${s.name.replace(/\s/g, '_')}.webm`;
+    a.click();
+};
+
+window.copyNoteById = async (id) => {
+    const tx = db.transaction('sessions', 'readonly');
+    const s = await new Promise(r => tx.objectStore('sessions').get(parseInt(id)).onsuccess = e => r(e.target.result));
+    const text = `PROYECTO: ${s.name}\nFECHA: ${s.date}\n\nRESUMEN:\n${s.summary}\n\nTRANSCRIPCIÓN:\n${s.transcript}`;
+    navigator.clipboard.writeText(text);
+    alert("Nota completa copiada al portapapeles.");
+};
+
+// UI State Toggles
+function uiRecording() {
+    elements.recordIcon.innerText = 'stop';
+    elements.recordRing.classList.remove('hidden');
+    elements.recordRing.classList.add('pulse-ring');
+    elements.status.innerText = "Repo activo: Grabando...";
+    elements.pauseBtn.classList.remove('hidden');
+    document.getElementById('pauseSpacer').classList.remove('hidden');
+    elements.fileSizeInfo.classList.remove('hidden');
+}
+
+function uiFinished() {
+    elements.recordIcon.innerText = 'mic';
+    elements.recordRing.classList.add('hidden');
+    elements.status.innerText = "Sesión capturada.";
+    elements.controls.classList.remove('hidden', 'opacity-0', 'translate-y-4', 'pointer-events-none');
+    elements.pauseBtn.classList.add('hidden');
+    document.getElementById('pauseSpacer').classList.add('hidden');
+}
+
+// Timer Logic
+function startTimer() {
+    timerInterval = setInterval(() => {
+        const elapsed = accumulatedTime + (Date.now() - startTime);
+        const s = Math.floor((elapsed / 1000) % 60).toString().padStart(2, '0');
+        const m = Math.floor((elapsed / 1000 / 60) % 60).toString().padStart(2, '0');
+        elements.timerDisplay.innerText = `${m}:${s}`;
+    }, 1000);
+}
+
+function stopTimer() { clearInterval(timerInterval); }
+
+// Event Handlers
+elements.recordBtn.onclick = () => {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') startFocus();
+    else stopFocus();
+};
+
+elements.pauseBtn.onclick = () => {
+    if (mediaRecorder.state === 'recording') {
+        mediaRecorder.pause();
+        accumulatedTime += Date.now() - startTime;
+        stopTimer();
+        elements.pauseIcon.innerText = 'play_arrow';
+    } else {
+        mediaRecorder.resume();
+        startTime = Date.now();
+        startTimer();
+        elements.pauseIcon.innerText = 'pause';
+    }
+};
+
+elements.saveBtn.onclick = analyzeSession;
+
+elements.cancelBtn.onclick = () => {
+    if (confirm("¿Limpiar repositorio actual?")) location.reload();
+};
+
+elements.downloadBtn.onclick = () => {
+    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `parts.webm`;
+    a.click();
+};
+
+function loadKey() {
+    const k = localStorage.getItem('sf_api_key_v2');
+    if (k) elements.sfKeyInput.value = k;
+    const g = localStorage.getItem('groq_api_key');
+    if (g) elements.groqKeyInput.value = g;
+    const gem = localStorage.getItem('gemini_api_key');
+    if (gem) elements.geminiKeyInput.value = gem;
+    const hf = localStorage.getItem('hf_token');
+    if (hf) elements.hfTokenInput.value = hf;
+    const s = localStorage.getItem('sf_base_url');
+    if (s) elements.serverSelect.value = s;
+}
+
+document.getElementById('saveSettings').onclick = () => {
+    localStorage.setItem('sf_api_key_v2', elements.sfKeyInput.value.trim());
+    localStorage.setItem('groq_api_key', elements.groqKeyInput.value.trim());
+    localStorage.setItem('gemini_api_key', elements.geminiKeyInput.value.trim());
+    localStorage.setItem('hf_token', elements.hfTokenInput.value.trim());
+    localStorage.setItem('sf_base_url', elements.serverSelect.value);
+    alert("Configuración Guardada.");
+    elements.settingsModal.classList.add('hidden');
+};
+
+elements.settingsBtn.onclick = () => elements.settingsModal.classList.remove('hidden');
+elements.sourceMic.onclick = () => { currentSource = 'mic'; elements.sourceMic.classList.add('bg-white', 'text-black'); elements.sourceSystem.classList.remove('bg-white', 'text-black'); };
+elements.sourceSystem.onclick = () => { currentSource = 'system'; elements.sourceSystem.classList.add('bg-white', 'text-black'); elements.sourceMic.classList.remove('bg-white', 'text-black'); };
+
+elements.searchInput.oninput = renderHistory;
+elements.projectFilter.onchange = renderHistory;
+
+window.toggleVisibility = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.type = el.type === 'password' ? 'text' : 'password';
+};

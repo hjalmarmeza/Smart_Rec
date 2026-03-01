@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Recorder - Antigravity</title>
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="style.css?v=2.2">
+    <style>
+        /* Estilos críticos para asegurar visibilidad inmediata */
+        input#sfKey {
+            color: #ffffff !important;
+            background: rgba(0, 0, 0, 0.5) !important;
+            border: 2px solid #8B5CF6 !important;
+        }
+
+        input#sfKey::placeholder {
+            color: rgba(255, 255, 255, 0.4) !important;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col items-center p-4">
+    <div class="nebula-bg"></div>
+
+    <!-- Header -->
+    <header class="w-full max-w-md flex justify-between items-center py-6 mb-8 px-2">
+        <div class="flex items-center gap-2">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-br flex items-center justify-center border shadow-lg">
+                <span class="material-symbols-rounded text-white text-2xl">neurology</span>
+            </div>
+            <h1 class="text-xl font-bold tracking-tight text-white uppercase">Smart <span
+                    class="text-violet-400">Recorder</span></h1>
+        </div>
+        <button id="settingsBtn"
+            class="w-10 h-10 glass rounded-full flex items-center justify-center text-white/70 hover:text-white transition-all">
+            <span class="material-symbols-rounded">settings</span>
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <main class="w-full max-w-md flex-1 flex flex-col items-center">
+        <!-- Session/Project Name -->
+        <div class="w-full mb-8">
+            <input type="text" id="sessionName"
+                class="w-full bg-transparent text-center text-lg font-bold text-white placeholder:text-slate-600 focus:outline-none"
+                placeholder="Nombre de la Sesión (Opcional)">
+            <div class="w-16 h-0.5 bg-violet-500/30 mx-auto mt-2 rounded-full"></div>
+        </div>
+
+        <!-- Visualizer Area -->
+        <div class="w-full h-40 flex items-center justify-center gap-1 mb-8">
+            <div id="visualizer" class="flex items-center gap-1-5 h-24">
+                <!-- Soundwave bars -->
+                <div class="soundwave-bar h-4"></div>
+                <div class="soundwave-bar h-8"></div>
+                <div class="soundwave-bar h-16"></div>
+                <div class="soundwave-bar h-12"></div>
+                <div class="soundwave-bar h-6"></div>
+            </div>
+        </div>
+
+        <!-- Source Selector & Size Info -->
+        <div class="w-full flex justify-between items-center mb-4 px-2">
+            <div class="flex glass rounded-xl p-1 gap-1">
+                <button id="sourceMic"
+                    class="h-8 px-3 rounded-lg flex items-center gap-1.5 text-[10px] font-black uppercase transition-all bg-white text-black">
+                    <span class="material-symbols-rounded text-base">mic</span> Mic
+                </button>
+                <button id="sourceSystem"
+                    class="h-8 px-3 rounded-lg flex items-center gap-1.5 text-[10px] font-black uppercase transition-all text-slate-400 hover:text-white">
+                    <span class="material-symbols-rounded text-base">tab</span> Sistema
+                </button>
+            </div>
+            <div id="fileSizeInfo" class="text-[10px] font-black text-slate-500 uppercase tracking-widest hidden">
+                Archivo: <span id="currentSize" class="text-green-400">0.0 MB</span> / 25
+            </div>
+        </div>
+
+        <!-- Timer & Recording Status -->
+        <div class="text-center mb-8">
+            <p id="recordingStatus" class="text-sm font-medium text-slate-400 uppercase tracking-widest mb-2">Listo para
+                grabar</p>
+            <h2 id="timerDisplay" class="text-6xl font-black text-white tabular-nums">00:00</h2>
+        </div>
+
+        <!-- Central Record Button Container -->
+        <div class="relative flex items-center justify-center mb-12">
+            <!-- Pulsing ring (only visible when recording) -->
+            <div id="recordRing" class="absolute w-36 h-36 rounded-full border-2 border-violet-500-20 hidden"></div>
+
+            <div class="flex items-center gap-6">
+                <!-- Pause Button (Hidden initially) -->
+                <button id="pauseBtn"
+                    class="w-14 h-14 glass rounded-full flex items-center justify-center text-white/70 hover:text-white transition-all hidden">
+                    <span id="pauseIcon" class="material-symbols-rounded text-3xl">pause</span>
+                </button>
+
+                <button id="recordBtn"
+                    class="relative z-10 w-28 h-28 rounded-full record-btn-gradient flex items-center justify-center transition-all active:scale-95 group">
+                    <span id="recordIcon"
+                        class="material-symbols-rounded text-white text-5xl group-hover:scale-110 transition-all">mic</span>
+                </button>
+
+                <!-- Placeholder to keep recordBtn centered if needed, or just use gap -->
+                <div id="pauseSpacer" class="w-14 h-14 hidden"></div>
+            </div>
+        </div>
+
+        <!-- Controls (Hidden initially) -->
+        <div id="recordingControls"
+            class="w-full grid grid-cols-3 gap-3 mb-2 opacity-0 transform translate-y-4 transition-all duration-500 pointer-events-none">
+            <button id="cancelBtn"
+                class="glass h-14 rounded-2xl flex flex-col items-center justify-center gap-1 font-bold text-slate-300 hover:bg-white-10">
+                <span class="material-symbols-rounded text-xl">close</span> <span
+                    class="text-[10px] uppercase">Borrar</span>
+            </button>
+            <button id="downloadBtn"
+                class="glass h-14 rounded-2xl flex flex-col items-center justify-center gap-1 font-bold text-blue-400 hover:bg-white-10">
+                <span class="material-symbols-rounded text-xl">download</span> <span
+                    class="text-[10px] uppercase">Audio</span>
+            </button>
+            <button id="saveBtn"
+                class="bg-white-10 h-14 rounded-2xl flex flex-col items-center justify-center gap-1 font-bold text-white transition-all">
+                <span class="material-symbols-rounded text-xl">auto_awesome</span> <span
+                    class="text-[10px] uppercase">Analizar</span>
+            </button>
+        </div>
+        <!-- AI Result Area (Hidden initially) -->
+        <div id="resultArea" class="w-full mt-8 hidden">
+            <div class="glass-card p-6 rounded-3xl border border-violet-500-20">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xs font-black text-violet-400 uppercase tracking-widest">Resultado IA</h3>
+                    <button id="copyBtn" class="text-xs text-slate-500 hover:text-white flex items-center gap-1">
+                        <span class="material-symbols-rounded text-sm">content_copy</span> COPIAR
+                    </button>
+                </div>
+
+                <!-- Progress Bar Analysis -->
+                <div id="analysisProgress"
+                    class="w-full h-1.5 bg-white/5 rounded-full mb-6 relative overflow-hidden hidden">
+                    <div id="progressBar"
+                        class="absolute top-0 left-0 h-full bg-gradient-to-r from-violet-500 to-blue-500 transition-all duration-500"
+                        style="width: 0%"></div>
+                    <div class="absolute inset-0 bg-white/10 animate-pulse"></div>
+                </div>
+
+                <div class="space-y-6">
+                    <div>
+                        <h4 class="text-white font-bold text-sm mb-2 flex items-center gap-2">
+                            <span class="material-symbols-rounded text-blue-400 text-lg">auto_awesome</span> Resumen
+                            Ejecutivo
+                        </h4>
+                        <div id="aiSummary" class="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+                            Redactando...</div>
+                    </div>
+
+                    <div class="h-px bg-white-5"></div>
+
+                    <div>
+                        <h4 class="text-white font-bold text-sm mb-2 flex items-center gap-2">
+                            <span class="material-symbols-rounded text-violet-400 text-lg">notes</span> Transcripción
+                            Pro
+                        </h4>
+                        <div id="aiTranscript"
+                            class="text-slate-400 text-xs leading-relaxed max-h-60 overflow-y-auto pr-2 custom-scrollbar whitespace-pre-wrap">
+                            Procesando audio...</div>
+                    </div>
+                </div>
+
+                <button id="newRecordBtn"
+                    class="w-full mt-6 py-3 glass rounded-xl text-xs font-black uppercase tracking-widest hover:bg-white-5 transition-all">
+                    Nueva Grabación
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Record History / Recent Notes List (Preview) -->
+    <section class="w-full max-w-md mt-6 pb-12">
+        <div class="flex justify-between items-center mb-4 px-2">
+            <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest">Notas Recientes</h3>
+            <button id="exportBackup"
+                class="text-[10px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1 hover:text-white transition-all">
+                <span class="material-symbols-rounded text-sm">database</span> Exportar Backup
+            </button>
+        </div>
+
+        <!-- Search & Filter Controls -->
+        <div class="flex gap-2 mb-4 px-2">
+            <div class="relative flex-1">
+                <span
+                    class="material-symbols-rounded absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
+                <input type="text" id="searchInput"
+                    class="w-full h-9 glass rounded-xl pl-9 pr-4 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500/50"
+                    placeholder="Buscar palabras clave...">
+            </div>
+            <select id="projectFilter"
+                class="w-1/3 h-9 glass rounded-xl px-2 text-[9px] font-black uppercase tracking-widest text-slate-400 focus:outline-none cursor-pointer hover:bg-white/5 hover:text-white transition-all bg-transparent border-none">
+                <option value="all">TODOS</option>
+            </select>
+        </div>
+        <div id="historyList" class="space-y-3">
+            <p class="text-center text-xs text-slate-600">No hay notas recientes</p>
+        </div>
+    </section>
+
+    <!-- API Settings Modal -->
+    <div id="settingsModal"
+        class="fixed inset-0 bg-black-80 backdrop-blur-md z-50 flex items-center justify-center hidden p-6">
+        <div class="glass-card w-full max-w-xs p-6 rounded-3xl border border-white-10">
+            <h2 class="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                <span class="material-symbols-rounded text-violet-400">key</span> Configuración AI
+            </h2>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Servidor
+                        SiliconFlow</label>
+                    <select id="serverSelect"
+                        class="w-full h-12 glass rounded-xl px-4 text-sm text-white focus:outline-none cursor-pointer bg-transparent border-none">
+                        <option value="https://api.siliconflow.com/v1">Global (.com) - Recomendado</option>
+                        <option value="https://api.siliconflow.cn/v1">China (.cn) - Más estable para Audio</option>
+                    </select>
+                </div>
+                <div>
+                    <label
+                        class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">SiliconFlow
+                        API Key</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="sfKey"
+                            class="flex-1 h-12 glass rounded-xl px-4 text-sm focus:outline-none" placeholder="sk-...">
+                        <button onclick="toggleVisibility('sfKey')"
+                            class="w-12 h-12 glass rounded-xl flex items-center justify-center text-slate-500 hover:text-white transition-all">
+                            <span class="material-symbols-rounded">visibility</span>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label
+                        class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block text-blue-400">Groq
+                        API Key (Whisper V3)</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="groqKey"
+                            class="flex-1 h-12 glass rounded-xl px-4 text-sm focus:outline-none border border-blue-500/30"
+                            placeholder="gsk_...">
+                        <button onclick="toggleVisibility('groqKey')"
+                            class="w-12 h-12 glass rounded-xl flex items-center justify-center text-slate-500 hover:text-white transition-all">
+                            <span class="material-symbols-rounded">visibility</span>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-2 block">Gemini API
+                        Key (Motor Google)</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="geminiKey"
+                            class="flex-1 h-12 glass rounded-xl px-4 text-sm focus:outline-none border border-amber-500/30"
+                            placeholder="AIza...">
+                        <button onclick="toggleVisibility('geminiKey')"
+                            class="w-12 h-12 glass rounded-xl flex items-center justify-center text-slate-500 hover:text-white transition-all">
+                            <span class="material-symbols-rounded">visibility</span>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-yellow-400 uppercase tracking-widest mb-2 block">Hugging
+                        Face Token (Motor Whisper - MAS ESTABLE)</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="hfToken"
+                            class="flex-1 h-12 glass rounded-xl px-4 text-sm focus:outline-none border border-yellow-500/30"
+                            placeholder="hf_...">
+                        <button onclick="toggleVisibility('hfToken')"
+                            class="w-12 h-12 glass rounded-xl flex items-center justify-center text-slate-500 hover:text-white transition-all">
+                            <span class="material-symbols-rounded">visibility</span>
+                        </button>
+                    </div>
+                    <p class="text-[9px] text-slate-500 mt-2 px-1">Obtén uno GRATIS en <a
+                            href="https://huggingface.co/settings/tokens" target="_blank"
+                            class="text-yellow-400 underline">huggingface.co/settings/tokens</a> (Tipo: Read)</p>
+                </div>
+            </div>
+            <button id="saveSettings" class="w-full h-12 bg-white text-black font-black rounded-xl transition-all">
+                GUARDAR CONFIGURACIÓN
+            </button>
+            <button onclick="document.getElementById('settingsModal').classList.add('hidden')"
+                class="w-full mt-2 text-xs text-slate-500 font-bold hover:text-white transition-all py-3">Cerrar</button>
+        </div>
+    </div>
+
+    <script src="app.js?v=2.1"></script>
+</body>
+
+</html>
