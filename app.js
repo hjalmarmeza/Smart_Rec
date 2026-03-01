@@ -213,41 +213,51 @@ async function analyzeSession() {
     elements.aiTranscript.innerText = transcriptionText;
 
     try {
-        // Step 2: Intelligent Summary
-        updateProgress(70, "IA analizando contexto y filtrando ruidos...");
-        const chatRes = await fetch(`${baseUrl}/chat/completions`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: "Qwen/Qwen2.5-72B-Instruct", // Changed to a more stable/available model on SF
-                messages: [
-                    {
-                        role: "system",
-                        content: `Eres un analista experto en sesiones técnicas y bilingües. 
-                        
-                        REGLAS CRÍTICAS:
-                        1. FILTRA ruidos, anuncios de YouTube y charlas irrelevantes.
-                        2. CONSERVA tecnicismos en inglés (Spanglish es aceptable).
-                        3. Genera un resumen ejecutivo en Español.
-                        
-                        FORMATO:
-                        - 💡 IDEA CENTRAL:
-                        - ⭐ PUNTOS CLAVE:
-                        - 🛠️ TAREAS/ACCIONES:`
-                    },
-                    { role: "user", content: transcriptionText }
-                ]
-            })
-        });
+        const chatModels = [
+            "deepseek-ai/DeepSeek-V3",
+            "Qwen/Qwen2.5-72B-Instruct",
+            "Qwen/Qwen2.5-7B-Instruct"
+        ];
 
-        if (!chatRes.ok) {
-            const errData = await chatRes.json().catch(() => ({}));
-            throw new Error(errData.message || `Error de IA: ${chatRes.status}`);
+        let chatData = null;
+        let chatError = null;
+
+        for (const modelId of chatModels) {
+            try {
+                updateProgress(75, `Analizando con motor: ${modelId.split('/')[1]}...`);
+                const chatRes = await fetch(`${baseUrl}/chat/completions`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: modelId,
+                        messages: [
+                            {
+                                role: "system",
+                                content: `Eres un analista experto en sesiones técnicas y bilingües. 
+                                REGLAS: Filtra ruidos, conserva tecnicismos en inglés, resume en Español.
+                                FORMATO: 💡 IDEA CENTRAL, ⭐ PUNTOS CLAVE, 🛠️ TAREAS.`
+                            },
+                            { role: "user", content: transcriptionText }
+                        ]
+                    })
+                });
+
+                if (chatRes.ok) {
+                    chatData = await chatRes.json();
+                    if (chatData.choices && chatData.choices.length > 0) break;
+                } else {
+                    const err = await chatRes.json().catch(() => ({}));
+                    console.warn(`Motor chat ${modelId} falló:`, err.message || chatRes.status);
+                    chatError = err.message || chatRes.status;
+                }
+            } catch (e) {
+                console.error(`Error de red con ${modelId}:`, e);
+                chatError = e.message;
+            }
         }
 
-        const chatData = await chatRes.json();
-        if (!chatData.choices || chatData.choices.length === 0) {
-            throw new Error("La IA no devolvió una respuesta válida.");
+        if (!chatData) {
+            throw new Error(chatError || "No se pudo conectar con los motores de análisis.");
         }
 
         const summary = chatData.choices[0].message.content;
