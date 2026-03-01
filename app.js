@@ -70,6 +70,7 @@ const elements = {
     settingsModal: document.getElementById('settingsModal'),
     sfKeyInput: document.getElementById('sfKey'),
     hfTokenInput: document.getElementById('hfToken'),
+    deepgramKeyInput: document.getElementById('deepgramKey'),
     serverSelect: document.getElementById('serverSelect'),
     sourceMic: document.getElementById('sourceMic'),
     sourceSystem: document.getElementById('sourceSystem'),
@@ -172,9 +173,35 @@ async function analyzeSession() {
     let transcriptionText = "";
     let success = false;
 
-    // --- TRY ENGINE 1: HUGGING FACE (Primary for audio) ---
+    // --- TRY ENGINE 1: DEEPGRAM (Best for Browsers / No CORS issues) ---
+    const dgKey = localStorage.getItem('deepgram_api_key');
+    if (dgKey) {
+        try {
+            updateProgress(30, "Haciendo magia con Deepgram...");
+            const dgRes = await fetch(`https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Token ${dgKey}`,
+                    'Content-Type': audioBlob.type
+                },
+                body: audioBlob
+            });
+
+            if (dgRes.ok) {
+                const dgData = await dgRes.json();
+                transcriptionText = dgData.results.channels[0].alternatives[0].transcript;
+                if (transcriptionText.trim()) success = true;
+            } else {
+                console.warn("Deepgram falló, intentando Hugging Face...");
+            }
+        } catch (err) {
+            console.error("Fallo con Deepgram:", err);
+        }
+    }
+
+    // --- TRY ENGINE 2: HUGGING FACE ---
     const hfToken = localStorage.getItem('hf_token');
-    if (hfToken) {
+    if (!success && hfToken) {
         try {
             updateProgress(35, "Usando motor Whisper via Hugging Face...");
             const hfRes = await fetch(`https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo`, {
@@ -422,17 +449,20 @@ elements.downloadBtn.onclick = () => {
 
 function loadKey() {
     const k = localStorage.getItem('sf_api_key_v2');
-    if (k) elements.sfKeyInput.value = k;
+    if (k && elements.sfKeyInput) elements.sfKeyInput.value = k;
     const hf = localStorage.getItem('hf_token');
-    if (hf) elements.hfTokenInput.value = hf;
+    if (hf && elements.hfTokenInput) elements.hfTokenInput.value = hf;
+    const dg = localStorage.getItem('deepgram_api_key');
+    if (dg && elements.deepgramKeyInput) elements.deepgramKeyInput.value = dg;
     const s = localStorage.getItem('sf_base_url');
-    if (s) elements.serverSelect.value = s;
+    if (s && elements.serverSelect) elements.serverSelect.value = s;
 }
 
 document.getElementById('saveSettings').onclick = () => {
-    localStorage.setItem('sf_api_key_v2', elements.sfKeyInput.value.trim());
-    localStorage.setItem('hf_token', elements.hfTokenInput.value.trim());
-    localStorage.setItem('sf_base_url', elements.serverSelect.value);
+    if (elements.sfKeyInput) localStorage.setItem('sf_api_key_v2', elements.sfKeyInput.value.trim());
+    if (elements.hfTokenInput) localStorage.setItem('hf_token', elements.hfTokenInput.value.trim());
+    if (elements.deepgramKeyInput) localStorage.setItem('deepgram_api_key', elements.deepgramKeyInput.value.trim());
+    if (elements.serverSelect) localStorage.setItem('sf_base_url', elements.serverSelect.value);
     alert("Configuración Guardada.");
     elements.settingsModal.classList.add('hidden');
 };
