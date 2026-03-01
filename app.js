@@ -212,8 +212,6 @@ async function analyzeSession() {
 
     elements.aiTranscript.innerText = transcriptionText;
 
-    elements.aiTranscript.innerText = transcriptionText;
-
     try {
         // Step 2: Intelligent Summary
         updateProgress(70, "IA analizando contexto y filtrando ruidos...");
@@ -221,7 +219,7 @@ async function analyzeSession() {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: "meta-llama/Meta-Llama-3.1-70B-Instruct",
+                model: "Qwen/Qwen2.5-72B-Instruct", // Changed to a more stable/available model on SF
                 messages: [
                     {
                         role: "system",
@@ -242,7 +240,16 @@ async function analyzeSession() {
             })
         });
 
+        if (!chatRes.ok) {
+            const errData = await chatRes.json().catch(() => ({}));
+            throw new Error(errData.message || `Error de IA: ${chatRes.status}`);
+        }
+
         const chatData = await chatRes.json();
+        if (!chatData.choices || chatData.choices.length === 0) {
+            throw new Error("La IA no devolvió una respuesta válida.");
+        }
+
         const summary = chatData.choices[0].message.content;
         elements.aiSummary.innerText = summary;
 
