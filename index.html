@@ -240,46 +240,33 @@
                             <span class="material-symbols-rounded">visibility</span>
                         </button>
                     </div>
-                </div>
-                <div>
-                    <label class="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-2 block">Deepgram
-                        API Key (Motor Recomendado - SIN ERRORES)</label>
-                    <div class="flex gap-2">
-                        <input type="password" id="deepgramKey"
-                            class="flex-1 h-12 glass rounded-xl px-4 text-sm focus:outline-none border border-emerald-500/30"
-                            placeholder="deep_...">
-                        <button onclick="toggleVisibility('deepgramKey')"
-                            class="w-12 h-12 glass rounded-xl flex items-center justify-center text-slate-500 hover:text-white transition-all">
-                            <span class="material-symbols-rounded">visibility</span>
-                        </button>
-                    </div>
-                    <p class="text-[9px] text-slate-500 mt-2 px-1">Obtén una GRATIS en <a
-                            href="https://console.deepgram.com/signup" target="_blank"
-                            class="text-emerald-400 underline">console.deepgram.com</a> (Ideal para navegadores)</p>
-                </div>
-                <div>
-                    <label class="text-[10px] font-black text-yellow-400 uppercase tracking-widest mb-2 block">Hugging
-                        Face Token (Motor Alternativo)</label>
-                    <div class="flex gap-2">
-                        <input type="password" id="hfToken"
-                            class="flex-1 h-12 glass rounded-xl px-4 text-sm focus:outline-none border border-yellow-500/30"
-                            placeholder="hf_...">
-                        <button onclick="toggleVisibility('hfToken')"
-                            class="w-12 h-12 glass rounded-xl flex items-center justify-center text-slate-500 hover:text-white transition-all">
-                            <span class="material-symbols-rounded">visibility</span>
-                        </button>
+                    <div>
+                        <label
+                            class="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-2 block">Deepgram
+                            API Key (Motor de Voz)</label>
+                        <div class="flex gap-2">
+                            <input type="password" id="deepgramKey"
+                                class="flex-1 h-12 glass rounded-xl px-4 text-sm focus:outline-none border border-emerald-500/30"
+                                placeholder="deep_...">
+                            <button onclick="toggleVisibility('deepgramKey')"
+                                class="w-12 h-12 glass rounded-xl flex items-center justify-center text-slate-500 hover:text-white transition-all">
+                                <span class="material-symbols-rounded">visibility</span>
+                            </button>
+                        </div>
+                        <p class="text-[9px] text-slate-500 mt-2 px-1">Voz: Obtén una GRATIS en <a
+                                href="https://console.deepgram.com/signup" target="_blank"
+                                class="text-emerald-400 underline">console.deepgram.com</a></p>
                     </div>
                 </div>
+                <button id="saveSettings" class="w-full h-12 bg-white text-black font-black rounded-xl transition-all">
+                    GUARDAR CONFIGURACIÓN
+                </button>
+                <button onclick="document.getElementById('settingsModal').classList.add('hidden')"
+                    class="w-full mt-2 text-xs text-slate-500 font-bold hover:text-white transition-all py-3">Cerrar</button>
             </div>
-            <button id="saveSettings" class="w-full h-12 bg-white text-black font-black rounded-xl transition-all">
-                GUARDAR CONFIGURACIÓN
-            </button>
-            <button onclick="document.getElementById('settingsModal').classList.add('hidden')"
-                class="w-full mt-2 text-xs text-slate-500 font-bold hover:text-white transition-all py-3">Cerrar</button>
         </div>
-    </div>
 
-    <script src="app.js?v=4.0"></script>
+        <script src="app.js?v=5.0"></script>
 </body>
 
 </html>

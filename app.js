@@ -69,7 +69,6 @@ const elements = {
     settingsBtn: document.getElementById('settingsBtn'),
     settingsModal: document.getElementById('settingsModal'),
     sfKeyInput: document.getElementById('sfKey'),
-    hfTokenInput: document.getElementById('hfToken'),
     deepgramKeyInput: document.getElementById('deepgramKey'),
     serverSelect: document.getElementById('serverSelect'),
     sourceMic: document.getElementById('sourceMic'),
@@ -173,97 +172,45 @@ async function analyzeSession() {
     let transcriptionText = "";
     let success = false;
 
-    // --- TRY ENGINE 1: DEEPGRAM (Best for Browsers / No CORS issues) ---
+    // --- TRANSCRIPTION: DEEPGRAM (The only one that works on GitHub Pages - No CORS issues) ---
     const dgKey = localStorage.getItem('deepgram_api_key');
-    if (dgKey) {
-        try {
-            updateProgress(30, "Haciendo magia con Deepgram...");
-            const dgRes = await fetch(`https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Token ${dgKey}`,
-                    'Content-Type': audioBlob.type
-                },
-                body: audioBlob
-            });
-
-            if (dgRes.ok) {
-                const dgData = await dgRes.json();
-                transcriptionText = dgData.results.channels[0].alternatives[0].transcript;
-                if (transcriptionText.trim()) success = true;
-            } else {
-                console.warn("Deepgram falló, intentando Hugging Face...");
-            }
-        } catch (err) {
-            console.error("Fallo con Deepgram:", err);
-        }
-    }
-
-    // --- TRY ENGINE 2: HUGGING FACE ---
-    const hfToken = localStorage.getItem('hf_token');
-    if (!success && hfToken) {
-        try {
-            updateProgress(35, "Usando motor Whisper via Hugging Face...");
-            const hfRes = await fetch(`https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${hfToken}`,
-                    'Content-Type': 'application/octet-stream'
-                },
-                body: audioBlob
-            });
-
-            if (hfRes.ok) {
-                const hfData = await hfRes.json();
-                transcriptionText = hfData.text;
-                success = true;
-            } else {
-                console.warn("Hugging Face falló, intentando SiliconFlow...");
-            }
-        } catch (err) {
-            console.error("Fallo con Hugging Face:", err);
-        }
-    }
-
-    // --- TRY ENGINE 2: SILICONFLOW (Fallback) ---
-    if (!success) {
-        for (const modelId of modelsToTry) {
-            try {
-                updateProgress(45, `Probando motor SF: ${modelId.split('/')[1]}...`);
-                const formData = new FormData();
-                formData.append('file', audioBlob, 'session.webm');
-                formData.append('model', modelId);
-
-                const transRes = await fetch(`${baseUrl}/audio/transcriptions`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${apiKey}` },
-                    body: formData
-                });
-
-                if (transRes.ok) {
-                    const transData = await transRes.json();
-                    transcriptionText = transData.text;
-                    success = true;
-                    break;
-                }
-            } catch (err) {
-                console.error(`Fallo crítico con SF ${modelId}:`, err);
-            }
-        }
-    }
-
-    if (!success) {
-        updateProgress(0, "Error: Motores de audio no activos.");
+    if (!dgKey) {
+        updateProgress(0, "Falta Deepgram API Key.");
         elements.aiSummary.innerHTML = `
-            <div class="text-red-400 text-xs">
-                <p class="font-bold">Todos los motores de voz fallaron.</p>
-                <p class="mt-2 text-white">1. SiliconFlow (.com/.cn) no te deja transcribir (común en cuentas gratis).</p>
-                <p class="mt-2 text-yellow-300 font-bold">SOLUCIÓN RECOMENDADA:</p>
-                <p>Ve a "Ajustes" ⚙️ y asegúrate de poner tu <b>Hugging Face Token</b> (es gratis y muy estable).</p>
-                <p class="mt-2 text-white text-[10px]">Si ya lo tienes, verifica que tenga permisos de "Inference Providers".</p>
+            <div class="text-emerald-400 text-xs text-center border border-emerald-500/30 p-4 rounded-xl glass">
+                <p class="font-black mb-2 uppercase tracking-tighter">Motor de Voz no configurado</p>
+                <p class="text-white mb-4">Abre "Ajustes" ⚙️ y pon tu Deepgram Key. Es la única que funciona en la nube.</p>
+                <a href="https://console.deepgram.com/signup" target="_blank" class="bg-emerald-500 text-black px-4 py-2 rounded-lg font-bold text-[10px] inline-block">OBTENER CLAVE GRATIS</a>
             </div>`;
         return;
     }
+
+    try {
+        updateProgress(40, "Transcribiendo con Deepgram...");
+        const dgRes = await fetch(`https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&language=es`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Token ${dgKey}`,
+                'Content-Type': audioBlob.type
+            },
+            body: audioBlob
+        });
+
+        if (dgRes.ok) {
+            const dgData = await dgRes.json();
+            transcriptionText = dgData.results.channels[0].alternatives[0].transcript;
+            if (transcriptionText.trim()) success = true;
+        } else {
+            throw new Error("Deepgram rechazó la petición. Revisa tu saldo o API Key.");
+        }
+    } catch (err) {
+        console.error("Fallo con Deepgram:", err);
+        updateProgress(0, "Error en Transcripción.");
+        elements.aiSummary.innerText = `Error: ${err.message}`;
+        return;
+    }
+
+    elements.aiTranscript.innerText = transcriptionText;
 
     elements.aiTranscript.innerText = transcriptionText;
 
@@ -450,8 +397,6 @@ elements.downloadBtn.onclick = () => {
 function loadKey() {
     const k = localStorage.getItem('sf_api_key_v2');
     if (k && elements.sfKeyInput) elements.sfKeyInput.value = k;
-    const hf = localStorage.getItem('hf_token');
-    if (hf && elements.hfTokenInput) elements.hfTokenInput.value = hf;
     const dg = localStorage.getItem('deepgram_api_key');
     if (dg && elements.deepgramKeyInput) elements.deepgramKeyInput.value = dg;
     const s = localStorage.getItem('sf_base_url');
@@ -460,7 +405,6 @@ function loadKey() {
 
 document.getElementById('saveSettings').onclick = () => {
     if (elements.sfKeyInput) localStorage.setItem('sf_api_key_v2', elements.sfKeyInput.value.trim());
-    if (elements.hfTokenInput) localStorage.setItem('hf_token', elements.hfTokenInput.value.trim());
     if (elements.deepgramKeyInput) localStorage.setItem('deepgram_api_key', elements.deepgramKeyInput.value.trim());
     if (elements.serverSelect) localStorage.setItem('sf_base_url', elements.serverSelect.value);
     alert("Configuración Guardada.");
