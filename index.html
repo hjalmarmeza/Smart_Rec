@@ -11,6 +11,7 @@
         rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0"
         rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <link rel="stylesheet" href="style.css?v=2.2">
     <style>
         /* Estilos críticos para asegurar visibilidad inmediata */
@@ -152,13 +153,37 @@
                 </div>
 
                 <div class="space-y-6">
-                    <div>
-                        <h4 class="text-white font-bold text-sm mb-2 flex items-center gap-2">
-                            <span class="material-symbols-rounded text-blue-400 text-lg">auto_awesome</span> Resumen
-                            Ejecutivo
-                        </h4>
-                        <div id="aiSummary" class="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-                            Redactando...</div>
+                    <!-- IA Summary Card -->
+                    <div class="glass-card p-4 sm:p-6 rounded-3xl border border-white/10">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-[10px] font-black text-violet-400 uppercase tracking-widest">Resumen
+                                Ejecutivo</span>
+                            <div class="flex gap-2">
+                                <button onclick="exportNote('pdf')" title="Exportar PDF"
+                                    class="w-8 h-8 rounded-lg glass flex items-center justify-center text-slate-400 hover:text-white transition-all">
+                                    <span class="material-symbols-rounded text-sm">picture_as_pdf</span>
+                                </button>
+                                <button onclick="exportNote('md')" title="Exportar Markdown"
+                                    class="w-8 h-8 rounded-lg glass flex items-center justify-center text-slate-400 hover:text-white transition-all">
+                                    <span class="material-symbols-rounded text-sm">description</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="aiSummary" class="text-white text-xs leading-relaxed space-y-2">
+                            <!-- Summary will be injected here -->
+                            Redactando...
+                        </div>
+
+                        <!-- Mental Map Section -->
+                        <div id="mindmapContainer" class="mt-6 pt-6 border-t border-white/5 hidden">
+                            <span
+                                class="text-[10px] font-black text-emerald-400 uppercase tracking-widest block mb-4 text-center">Mapa
+                                Mental de la Sesión</span>
+                            <div id="mermaidDiagram"
+                                class="mermaid flex justify-center bg-white/5 rounded-2xl p-4 overflow-x-auto">
+                                <!-- Mindmap goes here -->
+                            </div>
+                        </div>
                     </div>
 
                     <div class="h-px bg-white-5"></div>
@@ -266,7 +291,7 @@
             </div>
         </div>
 
-        <script src="app.js?v=5.0"></script>
+        <script src="app.js?v=6.0"></script>
 </body>
 
 </html>

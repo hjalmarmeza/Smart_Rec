@@ -12,6 +12,14 @@ const DB_NAME = 'SmartRecorderRepo';
 const DB_VERSION = 2;
 let db;
 
+// --- Initialize Mermaid ---
+mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    securityLevel: 'loose',
+    fontFamily: 'Outfit, sans-serif'
+});
+
 function initDB() {
     return new Promise((resolve) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -234,17 +242,25 @@ async function analyzeSession() {
                             {
                                 role: "system",
                                 content: `Eres un analista experto en sesiones técnicas y bilingües. 
-                                REGLAS: Filtra ruidos, conserva tecnicismos en inglés, resume en Español.
-                                FORMATO: 💡 IDEA CENTRAL, ⭐ PUNTOS CLAVE, 🛠️ TAREAS.`
+                                GENERAR RESPUESTA EN FORMATO JSON PURO.
+                                
+                                ESTRUCTURA DEL JSON:
+                                {
+                                  "titulo": "Título corto e impactante (máx 5 palabras)",
+                                  "resumen": "Resumen ejecutivo en Español con Idea Central, Puntos Clave y Tareas.",
+                                  "mindmap": "Código Mermaid de tipo mindmap. Empieza con 'mindmap' en la primera línea. Sé visual y jerárquico."
+                                }`
                             },
                             { role: "user", content: transcriptionText }
-                        ]
+                        ],
+                        response_format: { type: "json_object" }
                     })
                 });
 
                 if (chatRes.ok) {
-                    chatData = await chatRes.json();
-                    if (chatData.choices && chatData.choices.length > 0) break;
+                    const rawData = await chatRes.json();
+                    chatData = JSON.parse(rawData.choices[0].message.content);
+                    if (chatData.resumen) break;
                 } else {
                     const err = await chatRes.json().catch(() => ({}));
                     console.warn(`Motor chat ${modelId} falló:`, err.message || chatRes.status);
@@ -260,8 +276,21 @@ async function analyzeSession() {
             throw new Error(chatError || "No se pudo conectar con los motores de análisis.");
         }
 
-        const summary = chatData.choices[0].message.content;
-        elements.aiSummary.innerText = summary;
+        const { titulo, resumen, mindmap } = chatData;
+
+        // Update UI
+        if (titulo) elements.sessionName.value = titulo;
+        elements.aiSummary.innerText = resumen;
+
+        // Render Mindmap
+        if (mindmap) {
+            const container = document.getElementById('mindmapContainer');
+            const diagEl = document.getElementById('mermaidDiagram');
+            container.classList.remove('hidden');
+            diagEl.innerHTML = mindmap;
+            diagEl.removeAttribute('data-processed');
+            await mermaid.run({ nodes: [diagEl] });
+        }
 
         updateProgress(100, "¡Análisis completo!");
 
@@ -342,6 +371,50 @@ window.copyNoteById = async (id) => {
     const text = `PROYECTO: ${s.name}\nFECHA: ${s.date}\n\nRESUMEN:\n${s.summary}\n\nTRANSCRIPCIÓN:\n${s.transcript}`;
     navigator.clipboard.writeText(text);
     alert("Nota completa copiada al portapapeles.");
+};
+
+window.exportNote = async (format) => {
+    const title = elements.sessionName.value || "Sesion_Smart_Recorder";
+    const date = new Date().toLocaleString();
+    const summary = elements.aiSummary.innerText;
+    const transcript = elements.aiTranscript.innerText;
+
+    if (format === 'md') {
+        const mdContent = `# ${title}\n*Fecha: ${date}*\n\n## 📝 RESUMEN EJECUTIVO\n${summary}\n\n---\n## 🎙️ TRANSCRIPCIÓN\n${transcript}`;
+        const blob = new Blob([mdContent], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${title.replace(/\s/g, '_')}.md`;
+        a.click();
+    } else if (format === 'pdf') {
+        // Simple PDF export using browser print (cleanest for web without heavy libs)
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>${title}</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 40px; line-height: 1.6; color: #333; }
+                        h1 { color: #6366f1; border-bottom: 2px solid #6366f1; padding-bottom: 10px; }
+                        h2 { color: #4f46e5; margin-top: 30px; }
+                        .meta { color: #666; font-size: 0.9em; margin-bottom: 30px; }
+                        .content { white-space: pre-wrap; font-size: 11pt; }
+                    </style>
+                </head>
+                <body>
+                    <h1>${title}</h1>
+                    <div class="meta">Fecha de grabación: ${date}</div>
+                    <h2>Resumen Ejecutivo</h2>
+                    <div class="content">${summary}</div>
+                    <h2>Transcripción Completa</h2>
+                    <div class="content">${transcript}</div>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    }
 };
 
 // UI State Toggles
