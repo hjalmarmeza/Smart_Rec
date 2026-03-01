@@ -6,6 +6,8 @@ let accumulatedTime = 0;
 let audioContext, analyser, dataArray, animationId;
 let wakeLock = null;
 let currentSource = 'mic';
+let currentSlides = [];
+let activeSlideIndex = 0;
 
 // --- Database Logic (IndexedDB for "Digital Repositories") ---
 const DB_NAME = 'SmartRecorderRepo';
@@ -248,7 +250,13 @@ async function analyzeSession() {
                                 {
                                   "titulo": "Título corto e impactante (máx 5 palabras)",
                                   "resumen": "Resumen ejecutivo en Español con Idea Central, Puntos Clave y Tareas.",
-                                  "mindmap": "Código Mermaid de tipo mindmap. Empieza con 'mindmap' en la primera línea. Sé visual y jerárquico."
+                                  "mindmap": "Código Mermaid de tipo mindmap. Empieza con 'mindmap' en la primera línea. Sé visual y jerárquico.",
+                                  "slides": [
+                                    {"title": "Idea principal", "content": "Texto corto"},
+                                    {"title": "Puntos clave", "content": "Lista de puntos"},
+                                    {"title": "Acciones futuras", "content": "Qué hacer"},
+                                    {"title": "Conclusión", "content": "Cierre impactante"}
+                                  ]
                                 }`
                             },
                             { role: "user", content: transcriptionText }
@@ -290,6 +298,11 @@ async function analyzeSession() {
             diagEl.innerHTML = mindmap;
             diagEl.removeAttribute('data-processed');
             await mermaid.run({ nodes: [diagEl] });
+        }
+
+        // Store Slides
+        if (chatData.slides) {
+            currentSlides = chatData.slides;
         }
 
         updateProgress(100, "¡Análisis completo!");
@@ -371,6 +384,47 @@ window.copyNoteById = async (id) => {
     const text = `PROYECTO: ${s.name}\nFECHA: ${s.date}\n\nRESUMEN:\n${s.summary}\n\nTRANSCRIPCIÓN:\n${s.transcript}`;
     navigator.clipboard.writeText(text);
     alert("Nota completa copiada al portapapeles.");
+};
+
+window.openSlides = () => {
+    if (!currentSlides || currentSlides.length === 0) return alert("Primero analiza la sesión para generar diapositivas.");
+    activeSlideIndex = 0;
+    renderSlide();
+    document.getElementById('slidesModal').classList.remove('hidden');
+    document.documentElement.requestFullscreen().catch(() => { });
+};
+
+window.closeSlides = () => {
+    document.getElementById('slidesModal').classList.add('hidden');
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
+};
+
+function renderSlide() {
+    const slide = currentSlides[activeSlideIndex];
+    const content = document.getElementById('slideContent');
+    const counter = document.getElementById('slideCounter');
+
+    content.innerHTML = `
+        <h2 class="text-violet-400 text-6xl font-black mb-8 uppercase tracking-tighter">${slide.title}</h2>
+        <p class="text-white text-3xl leading-relaxed font-light">${slide.content.replace(/\n/g, '<br>')}</p>
+    `;
+    counter.innerText = `${activeSlideIndex + 1} / ${currentSlides.length}`;
+}
+
+window.nextSlide = () => {
+    if (activeSlideIndex < currentSlides.length - 1) {
+        activeSlideIndex++;
+        renderSlide();
+    } else {
+        closeSlides();
+    }
+};
+
+window.prevSlide = () => {
+    if (activeSlideIndex > 0) {
+        activeSlideIndex--;
+        renderSlide();
+    }
 };
 
 window.exportNote = async (format) => {

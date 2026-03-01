@@ -163,6 +163,10 @@
                                     class="w-8 h-8 rounded-lg glass flex items-center justify-center text-slate-400 hover:text-white transition-all">
                                     <span class="material-symbols-rounded text-sm">picture_as_pdf</span>
                                 </button>
+                                <button onclick="openSlides()" title="Modo Presentación"
+                                    class="w-8 h-8 rounded-lg glass flex items-center justify-center text-violet-400 hover:text-white transition-all">
+                                    <span class="material-symbols-rounded text-sm">present_to_all</span>
+                                </button>
                                 <button onclick="exportNote('md')" title="Exportar Markdown"
                                     class="w-8 h-8 rounded-lg glass flex items-center justify-center text-slate-400 hover:text-white transition-all">
                                     <span class="material-symbols-rounded text-sm">description</span>
@@ -291,7 +295,30 @@
             </div>
         </div>
 
-        <script src="app.js?v=6.0"></script>
+        <!-- Slides Modal -->
+        <div id="slidesModal" class="fixed inset-0 z-[100] bg-black hidden flex-col items-center justify-center p-10">
+            <button onclick="closeSlides()"
+                class="absolute top-10 right-10 text-slate-500 hover:text-white transition-all">
+                <span class="material-symbols-rounded text-4xl">close</span>
+            </button>
+            <div id="slideContent" class="max-w-4xl w-full text-center animate-fade-in">
+                <!-- Slide content will be injected here -->
+            </div>
+            <div class="absolute bottom-10 flex gap-6">
+                <button onclick="prevSlide()"
+                    class="w-14 h-14 glass rounded-full flex items-center justify-center text-white hover:bg-white/10 transition-all">
+                    <span class="material-symbols-rounded">chevron_left</span>
+                </button>
+                <div id="slideCounter"
+                    class="flex items-center text-xs font-black text-slate-500 tracking-widest uppercase">1 / 4</div>
+                <button onclick="nextSlide()"
+                    class="w-14 h-14 glass rounded-full flex items-center justify-center text-white hover:bg-white/10 transition-all">
+                    <span class="material-symbols-rounded">chevron_right</span>
+                </button>
+            </div>
+        </div>
+
+        <script src="app.js?v=7.0"></script>
 </body>
 
 </html>
