@@ -69,8 +69,6 @@ const elements = {
     settingsBtn: document.getElementById('settingsBtn'),
     settingsModal: document.getElementById('settingsModal'),
     sfKeyInput: document.getElementById('sfKey'),
-    groqKeyInput: document.getElementById('groqKey'),
-    geminiKeyInput: document.getElementById('geminiKey'),
     hfTokenInput: document.getElementById('hfToken'),
     serverSelect: document.getElementById('serverSelect'),
     sourceMic: document.getElementById('sourceMic'),
@@ -174,48 +172,9 @@ async function analyzeSession() {
     let transcriptionText = "";
     let success = false;
 
-    // --- TRY ENGINE 0: GEMINI (GOOGLE) - Most reliable ---
-    const geminiKey = localStorage.getItem('gemini_api_key');
-    if (geminiKey) {
-        try {
-            updateProgress(20, "Haciendo magia con Google Gemini...");
-
-            // Convert blob to base64 for Gemini
-            const reader = new FileReader();
-            const base64Promise = new Promise(r => {
-                reader.onload = () => r(reader.result.split(',')[1]);
-                reader.readAsDataURL(audioBlob);
-            });
-            const base64Data = await base64Promise;
-
-            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [
-                            { text: "Transcibe este audio palabra por palabra. Si hay varios idiomas, mantén el original. No añadidas comentarios extras, solo el texto del audio." },
-                            { inline_data: { mime_type: "audio/webm", data: base64Data } }
-                        ]
-                    }]
-                })
-            });
-
-            if (geminiRes.ok) {
-                const geminiData = await geminiRes.json();
-                transcriptionText = geminiData.candidates[0].content.parts[0].text;
-                success = true;
-            } else {
-                console.warn("Gemini falló, intentando otros...");
-            }
-        } catch (err) {
-            console.error("Fallo con Gemini:", err);
-        }
-    }
-
-    // --- TRY ENGINE 1: HUGGING FACE (Most stable fallback) ---
+    // --- TRY ENGINE 1: HUGGING FACE (Primary for audio) ---
     const hfToken = localStorage.getItem('hf_token');
-    if (!success && hfToken) {
+    if (hfToken) {
         try {
             updateProgress(35, "Usando motor Whisper via Hugging Face...");
             const hfRes = await fetch(`https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo`, {
@@ -232,45 +191,18 @@ async function analyzeSession() {
                 transcriptionText = hfData.text;
                 success = true;
             } else {
-                console.warn("Hugging Face falló, intentando otros...");
+                console.warn("Hugging Face falló, intentando SiliconFlow...");
             }
         } catch (err) {
             console.error("Fallo con Hugging Face:", err);
         }
     }
 
-    // --- Try Engine 2: Groq ---
-    const groqKey = localStorage.getItem('groq_api_key');
-    if (groqKey) {
-        try {
-            updateProgress(30, "Usando motor Groq (Whisper V3)...");
-            const formData = new FormData();
-            formData.append('file', audioBlob, 'session.webm');
-            formData.append('model', 'whisper-large-v3');
-
-            const groqRes = await fetch(`https://api.groq.com/openai/v1/audio/transcriptions`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${groqKey}` },
-                body: formData
-            });
-
-            if (groqRes.ok) {
-                const groqData = await groqRes.json();
-                transcriptionText = groqData.text;
-                success = true;
-            } else {
-                console.warn("Groq falló, intentando SiliconFlow...");
-            }
-        } catch (err) {
-            console.error("Fallo con Groq:", err);
-        }
-    }
-
-    // --- Try Engine 2: SiliconFlow (Only if Groq didn't run or failed) ---
+    // --- TRY ENGINE 2: SILICONFLOW (Fallback) ---
     if (!success) {
         for (const modelId of modelsToTry) {
             try {
-                updateProgress(40, `Probando motor SF: ${modelId.split('/')[1]}...`);
+                updateProgress(45, `Probando motor SF: ${modelId.split('/')[1]}...`);
                 const formData = new FormData();
                 formData.append('file', audioBlob, 'session.webm');
                 formData.append('model', modelId);
@@ -286,10 +218,6 @@ async function analyzeSession() {
                     transcriptionText = transData.text;
                     success = true;
                     break;
-                } else {
-                    const errData = await transRes.json().catch(() => ({}));
-                    console.warn(`Motor SF ${modelId} falló:`, errData.message || transRes.status);
-                    continue;
                 }
             } catch (err) {
                 console.error(`Fallo crítico con SF ${modelId}:`, err);
@@ -303,9 +231,9 @@ async function analyzeSession() {
             <div class="text-red-400 text-xs">
                 <p class="font-bold">Todos los motores de voz fallaron.</p>
                 <p class="mt-2 text-white">1. SiliconFlow (.com/.cn) no te deja transcribir (común en cuentas gratis).</p>
-                <p class="mt-2 text-blue-300 font-bold">SOLUCIÓN RECOMENDADA:</p>
-                <p>Ve a "Ajustes" ⚙️ y pon una API Key de <b>Groq</b> (es interna, ultra rápida y gratis).</p>
-                <p class="mt-2"><a href="https://console.groq.com/keys" target="_blank" class="underline">Haz clic aquí para obtener una de Groq</a></p>
+                <p class="mt-2 text-yellow-300 font-bold">SOLUCIÓN RECOMENDADA:</p>
+                <p>Ve a "Ajustes" ⚙️ y asegúrate de poner tu <b>Hugging Face Token</b> (es gratis y muy estable).</p>
+                <p class="mt-2 text-white text-[10px]">Si ya lo tienes, verifica que tenga permisos de "Inference Providers".</p>
             </div>`;
         return;
     }
@@ -495,10 +423,6 @@ elements.downloadBtn.onclick = () => {
 function loadKey() {
     const k = localStorage.getItem('sf_api_key_v2');
     if (k) elements.sfKeyInput.value = k;
-    const g = localStorage.getItem('groq_api_key');
-    if (g) elements.groqKeyInput.value = g;
-    const gem = localStorage.getItem('gemini_api_key');
-    if (gem) elements.geminiKeyInput.value = gem;
     const hf = localStorage.getItem('hf_token');
     if (hf) elements.hfTokenInput.value = hf;
     const s = localStorage.getItem('sf_base_url');
@@ -507,8 +431,6 @@ function loadKey() {
 
 document.getElementById('saveSettings').onclick = () => {
     localStorage.setItem('sf_api_key_v2', elements.sfKeyInput.value.trim());
-    localStorage.setItem('groq_api_key', elements.groqKeyInput.value.trim());
-    localStorage.setItem('gemini_api_key', elements.geminiKeyInput.value.trim());
     localStorage.setItem('hf_token', elements.hfTokenInput.value.trim());
     localStorage.setItem('sf_base_url', elements.serverSelect.value);
     alert("Configuración Guardada.");
