@@ -434,6 +434,13 @@ async function renderHistory() {
     elements.projectFilter.innerHTML = '<option value="all">TODOS</option>' +
         uniqueProjects.map(p => `<option value="${p}">${p.toUpperCase()}</option>`).join('');
 
+    // Reload the selected filter so it doesn't reset after we update the innerHTML
+    if (project && (project === 'all' || uniqueProjects.includes(project))) {
+        elements.projectFilter.value = project;
+    } else {
+        elements.projectFilter.value = 'all';
+    }
+
     const filtered = sessions.filter(s => {
         const text = (s.summary + s.transcript + s.name).toLowerCase();
         return text.includes(query) && (project === 'all' || s.name === project);
@@ -557,8 +564,8 @@ function renderSlide() {
         <h2 class="text-white text-5xl sm:text-7xl font-black mb-12 uppercase italic bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent">
             ${slide.title}
         </h2>
-        <div class="text-slate-300 text-xl sm:text-3xl leading-relaxed font-light max-w-3xl mx-auto">
-            ${slide.content.split('\n').map(line => `<div class="mb-4">• ${line.trim()}</div>`).join('')}
+        <div class="text-slate-300 text-xl sm:text-3xl leading-relaxed font-light max-w-5xl mx-auto space-y-6 text-left whitespace-pre-wrap">
+            ${slide.content}
         </div>
     `;
     counter.innerText = `${activeSlideIndex + 1} / ${currentSlides.length}`;
@@ -643,8 +650,10 @@ window.openMindmap = async () => {
     diagEl.innerHTML = '<div class="text-violet-400 animate-pulse font-black uppercase tracking-widest">Generando Mapa...</div>';
 
     try {
+        // Strip markdown backticks in case the AI included them
+        let code = currentMindmapCode.replace(/```mermaid/gi, '').replace(/```/g, '').trim();
+
         // Ensure the code has the "mindmap" header if the AI forgot it
-        let code = currentMindmapCode.trim();
         if (!code.toLowerCase().startsWith('mindmap')) {
             code = 'mindmap\n' + code;
         }
