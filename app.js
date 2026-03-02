@@ -267,13 +267,14 @@ async function analyzeSession() {
         });
         if (dgRes.ok) {
             const dgData = await dgRes.json();
+            console.log("Deepgram raw response:", JSON.stringify(dgData?.results?.channels?.[0]?.alternatives?.[0]));
 
-            // HYBRID ENGINE: Combines Utterances (Speakers) with Channel Transcript (Full Text)
-            const utterances = dgData.results.utterances;
-            const fullTranscript = dgData.results.channels[0].alternatives[0].transcript;
+            const utterances = dgData?.results?.utterances;
+            const fullTranscript = dgData?.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
+
+            console.log("Full transcript length:", fullTranscript.length, "| Utterances:", utterances?.length);
 
             if (utterances && utterances.length > 0) {
-                // If utterances are too short compared to full transcript, use full transcript
                 const utterancesText = utterances.map(u => u.transcript).join(' ');
                 if (utterancesText.length < fullTranscript.length * 0.8) {
                     console.warn("Utterances too short, using full channel transcript.");
@@ -285,15 +286,36 @@ async function analyzeSession() {
                 transcriptionText = fullTranscript;
             }
         } else {
-            throw new Error("Fallo en Deepgram.");
+            const errBody = await dgRes.text().catch(() => '');
+            console.error("Deepgram error response:", dgRes.status, errBody);
+            throw new Error(`Deepgram error ${dgRes.status}: ${errBody.substring(0, 200)}`);
         }
     } catch (err) {
         updateProgress(0, "Error en Transcripción.");
-        elements.aiSummary.innerText = `Error: ${err.message}`;
+        elements.aiSummary.innerHTML = `<div class="text-red-400 text-xs p-4 bg-red-500/10 rounded-xl border border-red-500/20"><b>Error de Transcripción:</b><br>${err.message}<br><br><span class="text-slate-400">Verifica tu Deepgram API Key en Ajustes ⚙️</span></div>`;
+        return;
+    }
+
+    // CRITICAL: Do not proceed if transcription is empty — would cause AI hallucination
+    if (!transcriptionText || transcriptionText.trim().length < 10) {
+        updateProgress(0, "Transcripción vacía.");
+        elements.aiTranscript.innerText = "(Sin contenido detectado)";
+        elements.aiSummary.innerHTML = `
+            <div class="text-amber-400 text-xs p-4 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                <b>⚠️ Sin transcripción detectada</b><br><br>
+                Posibles causas:<br>
+                • El audio grabado no tenía voz audible<br>
+                • La grabación fue muy corta (menos de 2 segundos)<br>
+                • Problema con el micrófono o la fuente de audio<br>
+                • La clave de Deepgram no tiene créditos suficientes<br><br>
+                <span class="text-slate-400">Intenta grabar de nuevo hablando claramente.</span>
+            </div>`;
         return;
     }
 
     elements.aiTranscript.innerText = transcriptionText;
+
+
 
     // --- FAIL-SAFE SAVE (Before AI processing) ---
     // If user's API fails or freezes, the transcription audio won't be lost.
