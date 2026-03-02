@@ -603,10 +603,16 @@ window.openSessionById = async (id) => {
             if (c) c.classList.add('hidden');
         }
 
-        // Send UI feedback
-        elements.status.innerText = "Repositorio Cargado.";
+        // Send UI feedback and scroll
+        elements.status.innerText = "Repositorio Cargado En Panel Superior";
         elements.progressBar.style.width = '100%';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Prevent confusion of "disappearing" by visually alerting them it moved up
+        setTimeout(() => {
+            window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+            elements.resultArea.classList.add('ring-4', 'ring-emerald-500', 'ring-opacity-50');
+            setTimeout(() => elements.resultArea.classList.remove('ring-4', 'ring-emerald-500', 'ring-opacity-50'), 1500);
+        }, 300);
 
     } catch (err) {
         alert("Fallo al abrir archivo de bóveda: " + err.message);
@@ -1011,6 +1017,32 @@ function initEventListeners() {
     };
 
     elements.saveBtn.onclick = analyzeSession;
+
+    elements.cancelBtn.onclick = () => {
+        if (!confirm("¿Descartar grabación y borrar datos actuales de la pantalla?")) return;
+
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+        audioChunks = [];
+        elements.sessionName.value = "";
+        elements.aiSummary.innerHTML = "";
+        elements.aiTranscript.innerText = "Esperando grabación...";
+        elements.status.innerText = "Descartado. Listo.";
+
+        uiFinished();
+        updateProgress(0, "Listo para nueva sesión");
+        localStorage.removeItem('sr_draft_audio');
+
+        // Hide toggles
+        document.getElementById('mindmapToggle').classList.add('hidden');
+        const infoCont = document.getElementById('infographicContainer');
+        if (infoCont) infoCont.classList.add('hidden');
+    };
+
+    elements.downloadBtn.onclick = () => {
+        exportNote('pdf');
+    };
 
     document.getElementById('saveSettings').onclick = () => {
         localStorage.setItem('sf_api_key_v2', elements.sfKeyInput.value.trim());
