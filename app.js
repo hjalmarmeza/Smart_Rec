@@ -472,6 +472,27 @@ window.deleteSessionById = (id, event) => {
     return false;
 };
 
+window.wipeAllSessions = () => {
+    if (!confirm("⚠️ CUIDADO: Destruirás TODOS los repositorios permanentemente. ¿Estás seguro?")) return;
+
+    // Attempt DB Delete
+    try {
+        const tx = db.transaction('sessions', 'readwrite');
+        const store = tx.objectStore('sessions');
+        const req = store.clear();
+
+        req.onsuccess = () => {
+            document.getElementById('historyList').innerHTML = '<p class="text-xs text-slate-600 text-center">Bóveda destruida y vaciada exitosamente.</p>';
+            alert("Bóveda limpia.");
+        };
+        req.onerror = () => {
+            alert("Error al intentar limpiar la bóveda del navegador.");
+        };
+    } catch (e) {
+        alert("Fallo crítico en IndexedDB local: " + e.message);
+    }
+};
+
 window.downloadRepoAudio = async (id) => {
     const tx = db.transaction('sessions', 'readonly');
     const s = await new Promise(r => tx.objectStore('sessions').get(parseInt(id)).onsuccess = e => r(e.target.result));

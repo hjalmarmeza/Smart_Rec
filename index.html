@@ -267,9 +267,14 @@
         <section class="mt-20 min-h-screen pb-96">
             <div class="flex items-center justify-between mb-8">
                 <h3 class="text-sm font-black text-white uppercase tracking-widest">Repositorios Guardados</h3>
-                <button id="exportBackup"
-                    class="text-[9px] font-black text-slate-500 hover:text-blue-400 uppercase tracking-widest transition-all">Exportar
-                    Backup</button>
+                <div class="flex gap-4">
+                    <button onclick="wipeAllSessions()"
+                        class="text-[9px] font-black text-red-400 hover:text-red-300 uppercase tracking-widest transition-all">Borrar
+                        Todo</button>
+                    <button id="exportBackup"
+                        class="text-[9px] font-black text-slate-500 hover:text-blue-400 uppercase tracking-widest transition-all">Exportar
+                        Backup</button>
+                </div>
             </div>
 
             <!-- Filters -->
