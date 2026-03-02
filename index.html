@@ -180,13 +180,22 @@
                         </div>
 
                         <!-- Infographic Section -->
-                        <div id="infographicContainer" class="mt-6 pt-6 border-t border-white/5 hidden">
+                        <!-- Infographic Section -->
+                        <div id="infographicContainer" class="mt-6 pt-6 border-t border-white/5 hidden text-center">
                             <span
-                                class="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-4 text-center">Infografía
-                                de Relevancia</span>
-                            <div id="infographicContent" class="grid grid-cols-2 gap-4">
+                                class="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-4">Métricas
+                                de la Sesión</span>
+                            <div id="infographicContent" class="flex flex-wrap justify-center gap-3">
                                 <!-- Injected Infographic Cards -->
                             </div>
+                        </div>
+
+                        <!-- Manual Trigger for Mindmap -->
+                        <div id="mindmapToggle" class="mt-6 flex justify-center hidden">
+                            <button onclick="toggleMindmapUI()"
+                                class="px-6 py-2 glass rounded-full text-[10px] font-black text-emerald-400 uppercase tracking-widest hover:bg-emerald-500/10 transition-all flex items-center gap-2">
+                                <span class="material-symbols-rounded text-sm">account_tree</span> Ver Mapa Mental
+                            </button>
                         </div>
 
                         <!-- Mental Map Section -->
@@ -338,7 +347,7 @@
             </div>
         </div>
 
-        <script src="app.js?v=8.0"></script>
+        <script src="app.js?v=11.0"></script>
 </body>
 
 </html>

@@ -297,7 +297,7 @@ async function analyzeSession() {
             throw new Error(chatError || "No se pudo conectar con los motores de análisis.");
         }
 
-        const { titulo, resumen, mindmap } = chatData;
+        const { titulo, resumen, mindmap, slides, infografia } = chatData;
 
         // Update UI
         if (titulo) elements.sessionName.value = titulo;
@@ -311,6 +311,7 @@ async function analyzeSession() {
             diagEl.innerHTML = mindmap;
             diagEl.removeAttribute('data-processed');
             await mermaid.run({ nodes: [diagEl] });
+            document.getElementById('mindmapToggle').classList.remove('hidden');
 
             // Enable Zoom
             setTimeout(() => {
@@ -345,7 +346,7 @@ async function analyzeSession() {
         await saveSessionToRepo({
             name: elements.sessionName.value || 'Sesión sin nombre',
             date: new Date().toLocaleString(),
-            summary: summary,
+            summary: resumen, // FIXED: was 'summary'
             transcript: transcriptionText,
             audioBlob: audioBlob // We save the actual audio in the browser DB!
         });
@@ -424,8 +425,15 @@ window.openSlides = () => {
     if (!currentSlides || currentSlides.length === 0) return alert("Primero analiza la sesión para generar diapositivas.");
     activeSlideIndex = 0;
     renderSlide();
-    document.getElementById('slidesModal').classList.remove('hidden');
-    document.documentElement.requestFullscreen().catch(() => { });
+    const modal = document.getElementById('slidesModal');
+    modal.classList.remove('hidden');
+
+    // Try fullscreen but don't fail if blocked or not supported
+    try {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+        }
+    } catch (e) { console.warn("Fullscreen blocked", e); }
 };
 
 window.closeSlides = () => {
@@ -531,25 +539,39 @@ window.exportNote = async (format) => {
 function renderInfographic(data) {
     const container = document.getElementById('infographicContainer');
     const content = document.getElementById('infographicContent');
+    if (!container || !content) return;
     container.classList.remove('hidden');
 
     content.innerHTML = `
-        <div class="glass p-3 rounded-2xl border border-white/5 text-center">
+        <div class="glass p-3 px-6 rounded-2xl border border-white/5 text-center min-w-[120px]">
             <span class="text-[8px] text-slate-500 uppercase block mb-1">Sentimiento</span>
-            <span class="text-xs font-bold text-white">${data.sentimiento}</span>
+            <span class="text-xs font-bold text-white uppercase">${data.sentimiento}</span>
         </div>
-        <div class="glass p-3 rounded-2xl border border-white/5 text-center">
+        <div class="glass p-3 px-6 rounded-2xl border border-white/5 text-center min-w-[120px]">
             <span class="text-[8px] text-slate-500 uppercase block mb-1">Relevancia</span>
             <span class="text-xs font-bold text-blue-400">${data.relevancia}%</span>
         </div>
-        <div class="glass p-3 rounded-2xl border border-white/5 text-center col-span-2">
-            <span class="text-[8px] text-slate-500 uppercase block mb-1">Palabras Clave</span>
-            <div class="flex flex-wrap justify-center gap-1 mt-1">
-                ${data.palabras_clave.map(w => `<span class="px-2 py-0.5 bg-white/5 rounded-full text-[9px] text-slate-300">${w}</span>`).join('')}
+        <div class="glass p-3 px-6 rounded-2xl border border-white/5 text-center w-full sm:w-auto">
+            <span class="text-[8px] text-slate-500 uppercase block mb-1">Conceptos Clave</span>
+            <div class="flex flex-wrap justify-center gap-2 mt-1">
+                ${(data.palabras_clave || []).map(w => `<span class="px-3 py-1 bg-violet-500/10 rounded-full text-[10px] text-slate-200 border border-white/10 uppercase font-bold">${w}</span>`).join('')}
             </div>
         </div>
     `;
 }
+
+window.toggleMindmapUI = () => {
+    const container = document.getElementById('mindmapContainer');
+    const toggle = document.getElementById('mindmapToggle');
+    if (container.classList.contains('hidden')) {
+        container.classList.remove('hidden');
+        toggle.classList.add('hidden');
+        if (panZoomInstance) panZoomInstance.resize().fit().center();
+    } else {
+        container.classList.add('hidden');
+        toggle.classList.remove('hidden');
+    }
+};
 
 window.resetZoom = () => {
     if (panZoomInstance) panZoomInstance.reset();
