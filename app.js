@@ -231,10 +231,17 @@ async function analyzeSession() {
                 if (chatRes.ok) {
                     const rawData = await chatRes.json();
                     const content = rawData.choices[0].message.content;
+                    console.log("IA raw output:", content);
 
                     // Robust JSON Extract
-                    const jsonMatch = content.match(/\{[\s\S]*\}/);
-                    chatData = JSON.parse(jsonMatch ? jsonMatch[0] : content);
+                    try {
+                        const jsonMatch = content.match(/\{[\s\S]*\}/);
+                        chatData = JSON.parse(jsonMatch ? jsonMatch[0] : content);
+                    } catch (parseErr) {
+                        console.error("JSON Parse Error:", parseErr);
+                        chatError = "Error al procesar formato JSON de la IA.";
+                        continue;
+                    }
 
                     if (chatData && chatData.resumen) break;
                 } else {
@@ -251,8 +258,11 @@ async function analyzeSession() {
 
         if (titulo) elements.sessionName.value = titulo;
 
-        // Formatear Resumen (Line breaks to paragraphs)
-        const formattedSummary = (resumen || "Sin resumen.")
+        console.log("Rendering summary:", resumen);
+
+        // Formatear Resumen (Safe casting)
+        const summaryText = String(resumen || "Sin resumen.");
+        const formattedSummary = summaryText
             .split('\n')
             .filter(p => p.trim())
             .map(p => `<p class="mb-3">${p.trim()}</p>`)
@@ -260,23 +270,27 @@ async function analyzeSession() {
 
         elements.aiSummary.innerHTML = formattedSummary;
 
-        // Mindmap (On-demand)
+        // Mindmap (On-demand) - Wrapped in try/catch to prevent blocking
         if (mindmap) {
-            const diagEl = document.getElementById('mermaidDiagram');
-            const toggleBtn = document.getElementById('mindmapToggle');
-            diagEl.innerHTML = mindmap;
-            diagEl.removeAttribute('data-processed');
-            await mermaid.run({ nodes: [diagEl] });
-            toggleBtn.classList.remove('hidden'); // Only show the Toggle button!
+            try {
+                const diagEl = document.getElementById('mermaidDiagram');
+                const toggleBtn = document.getElementById('mindmapToggle');
+                diagEl.innerHTML = mindmap;
+                diagEl.removeAttribute('data-processed');
+                await mermaid.run({ nodes: [diagEl] });
+                toggleBtn.classList.remove('hidden');
 
-            // Zoom Init
-            setTimeout(() => {
-                const svg = diagEl.querySelector('svg');
-                if (svg) {
-                    if (panZoomInstance) panZoomInstance.destroy();
-                    panZoomInstance = svgPanZoom(svg, { zoomEnabled: true, controlIconsEnabled: false, fit: true, center: true });
-                }
-            }, 500);
+                // Zoom Init
+                setTimeout(() => {
+                    const svg = diagEl.querySelector('svg');
+                    if (svg) {
+                        if (panZoomInstance) panZoomInstance.destroy();
+                        panZoomInstance = svgPanZoom(svg, { zoomEnabled: true, controlIconsEnabled: false, fit: true, center: true });
+                    }
+                }, 500);
+            } catch (mermaidErr) {
+                console.warn("Mermaid render failed, but summary should be visible:", mermaidErr);
+            }
         }
 
         if (infografia) renderInfographic(infografia);
