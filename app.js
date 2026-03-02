@@ -124,12 +124,21 @@ async function startFocus() {
         mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
 
-        mediaRecorder.ondataavailable = (e) => {
-            audioChunks.push(e.data);
-            const size = audioChunks.reduce((acc, c) => acc + c.size, 0);
-            const mb = (size / (1024 * 1024)).toFixed(1);
-            elements.currentSizeLabel.innerText = `${mb} MB`;
-            if (mb > 24) stopFocus(); // Auto-stop at 25MB safety
+        mediaRecorder.ondataavailable = async (e) => {
+            if (e.data.size > 0) {
+                audioChunks.push(e.data);
+
+                // Real-time draft saving (Blob to Base64/URL for safety)
+                const fullBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.onloadend = () => localStorage.setItem('sr_draft_audio', reader.result);
+                reader.readAsDataURL(fullBlob);
+
+                const size = audioChunks.reduce((acc, c) => acc + c.size, 0);
+                const mb = (size / (1024 * 1024)).toFixed(1);
+                elements.currentSizeLabel.innerText = `${mb} MB`;
+                if (mb > 24) stopFocus();
+            }
         };
 
         mediaRecorder.start(1000);
@@ -163,6 +172,8 @@ async function analyzeSession() {
     updateProgress(10, "Iniciando análisis...");
 
     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    console.log("Audio Blob Size for Transcription:", audioBlob.size, "bytes");
+
     let transcriptionText = "";
 
     // --- TRANSCRIPTION: DEEPGRAM (CORS-Friendly) ---
@@ -310,6 +321,9 @@ async function analyzeSession() {
         });
 
         renderHistory();
+
+        // Clear draft on success
+        localStorage.removeItem('sr_draft_audio');
 
     } catch (err) {
         elements.aiSummary.innerText = `Error: ${err.message}. Reintenta.`;
