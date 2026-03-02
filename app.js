@@ -605,6 +605,7 @@ window.openSessionById = async (id) => {
 
         // Send UI feedback, ensure resultArea is visible, and scroll
         elements.resultArea.classList.remove('hidden');
+        elements.progressContainer.classList.remove('hidden');
         elements.status.innerText = "Repositorio Cargado En Panel Superior";
         elements.progressBar.style.width = '100%';
 
