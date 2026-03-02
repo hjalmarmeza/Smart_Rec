@@ -9,6 +9,7 @@ let currentSource = 'mic';
 let currentSlides = [];
 let activeSlideIndex = 0;
 let panZoomInstance = null;
+let currentMindmapCode = "";
 
 // --- Database Logic (IndexedDB for "Digital Repositories") ---
 const DB_NAME = 'SmartRecorderRepo';
@@ -288,27 +289,10 @@ async function analyzeSession() {
 
         elements.aiSummary.innerHTML = summaryHTML;
 
-        // Mindmap (On-demand) - Wrapped in try/catch to prevent blocking
+        // Mindmap (On-demand)
         if (mindmap) {
-            try {
-                const diagEl = document.getElementById('mermaidDiagram');
-                const toggleBtn = document.getElementById('mindmapToggle');
-                diagEl.innerHTML = mindmap;
-                diagEl.removeAttribute('data-processed');
-                await mermaid.run({ nodes: [diagEl] });
-                toggleBtn.classList.remove('hidden');
-
-                // Zoom Init
-                setTimeout(() => {
-                    const svg = diagEl.querySelector('svg');
-                    if (svg) {
-                        if (panZoomInstance) panZoomInstance.destroy();
-                        panZoomInstance = svgPanZoom(svg, { zoomEnabled: true, controlIconsEnabled: false, fit: true, center: true });
-                    }
-                }, 500);
-            } catch (mermaidErr) {
-                console.warn("Mermaid render failed, but summary should be visible:", mermaidErr);
-            }
+            currentMindmapCode = mindmap;
+            document.getElementById('mindmapToggle').classList.remove('hidden');
         }
 
         if (infografia) renderInfographic(infografia);
@@ -491,20 +475,55 @@ function renderInfographic(data) {
     `;
 }
 
-window.openMindmap = () => {
+window.openMindmap = async () => {
+    if (!currentMindmapCode) return;
+
     const modal = document.getElementById('mindmapModal');
+    const diagEl = document.getElementById('mermaidDiagram');
+
     modal.classList.remove('hidden');
-    setTimeout(() => {
-        if (panZoomInstance) {
-            panZoomInstance.resize();
-            panZoomInstance.fit();
-            panZoomInstance.center();
+    diagEl.innerHTML = '<div class="text-violet-400 animate-pulse font-black uppercase tracking-widest">Generando Mapa...</div>';
+
+    try {
+        // Ensure the code has the "mindmap" header if the AI forgot it
+        let code = currentMindmapCode.trim();
+        if (!code.toLowerCase().startsWith('mindmap')) {
+            code = 'mindmap\n' + code;
         }
-    }, 100);
+
+        diagEl.innerHTML = code;
+        diagEl.removeAttribute('data-processed');
+
+        await mermaid.run({ nodes: [diagEl] });
+
+        setTimeout(() => {
+            const svg = diagEl.querySelector('svg');
+            if (svg) {
+                svg.style.maxWidth = "100%";
+                svg.style.height = "100%";
+                if (panZoomInstance) panZoomInstance.destroy();
+                panZoomInstance = svgPanZoom(svg, {
+                    zoomEnabled: true,
+                    controlIconsEnabled: false,
+                    fit: true,
+                    center: true,
+                    minZoom: 0.1,
+                    maxZoom: 10
+                });
+            }
+        }, 200);
+    } catch (err) {
+        console.error("Mermaid open error:", err);
+        diagEl.innerHTML = `<div class="text-red-400 text-xs p-10">Error al renderizar el mapa: ${err.message}</div>`;
+    }
 };
 
 window.closeMindmap = () => {
     document.getElementById('mindmapModal').classList.add('hidden');
+    if (panZoomInstance) {
+        panZoomInstance.destroy();
+        panZoomInstance = null;
+    }
 };
 
 window.resetZoom = () => { if (panZoomInstance) panZoomInstance.reset(); };
