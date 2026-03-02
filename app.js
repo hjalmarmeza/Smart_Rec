@@ -8,6 +8,7 @@ let wakeLock = null;
 let currentSource = 'mic';
 let currentSlides = [];
 let activeSlideIndex = 0;
+let panZoomInstance = null;
 
 // --- Database Logic (IndexedDB for "Digital Repositories") ---
 const DB_NAME = 'SmartRecorderRepo';
@@ -256,7 +257,13 @@ async function analyzeSession() {
                                     {"title": "Puntos clave", "content": "Lista de puntos"},
                                     {"title": "Acciones futuras", "content": "Qué hacer"},
                                     {"title": "Conclusión", "content": "Cierre impactante"}
-                                  ]
+                                  ],
+                                  "infografia": {
+                                    "sentimiento": "Positivo/Neutral/Negativo",
+                                    "relevancia": "0-100",
+                                    "palabras_clave": ["A", "B", "C"],
+                                    "duracion_estimada": "X min"
+                                  }
                                 }`
                             },
                             { role: "user", content: transcriptionText }
@@ -298,6 +305,27 @@ async function analyzeSession() {
             diagEl.innerHTML = mindmap;
             diagEl.removeAttribute('data-processed');
             await mermaid.run({ nodes: [diagEl] });
+
+            // Enable Zoom
+            setTimeout(() => {
+                const svg = diagEl.querySelector('svg');
+                if (svg) {
+                    svg.style.width = "100%";
+                    svg.style.height = "100%";
+                    if (panZoomInstance) panZoomInstance.destroy();
+                    panZoomInstance = svgPanZoom(svg, {
+                        zoomEnabled: true,
+                        controlIconsEnabled: false,
+                        fit: true,
+                        center: true
+                    });
+                }
+            }, 500);
+        }
+
+        // Render Infographic
+        if (chatData.infografia) {
+            renderInfographic(chatData.infografia);
         }
 
         // Store Slides
@@ -442,7 +470,6 @@ window.exportNote = async (format) => {
         a.download = `${title.replace(/\s/g, '_')}.md`;
         a.click();
     } else if (format === 'pdf') {
-        // Simple PDF export using browser print (cleanest for web without heavy libs)
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <html>
@@ -450,25 +477,59 @@ window.exportNote = async (format) => {
                     <title>${title}</title>
                     <style>
                         body { font-family: sans-serif; padding: 40px; line-height: 1.6; color: #333; }
-                        h1 { color: #6366f1; border-bottom: 2px solid #6366f1; padding-bottom: 10px; }
-                        h2 { color: #4f46e5; margin-top: 30px; }
-                        .meta { color: #666; font-size: 0.9em; margin-bottom: 30px; }
-                        .content { white-space: pre-wrap; font-size: 11pt; }
+                        h1 { color: #6366f1; border-bottom: 2px solid #6366f1; padding-bottom: 10px; margin-bottom: 5px; }
+                        .date { color: #888; font-size: 0.8em; margin-bottom: 30px; }
+                        h2 { color: #4f46e5; margin-top: 30px; background: #f3f4f6; padding: 10px; border-radius: 5px; }
+                        .content { white-space: pre-wrap; font-size: 11pt; padding: 10px; }
+                        .summary-box { border-left: 5px solid #6366f1; background: #f9fafb; margin: 20px 0; }
                     </style>
                 </head>
                 <body>
                     <h1>${title}</h1>
-                    <div class="meta">Fecha de grabación: ${date}</div>
-                    <h2>Resumen Ejecutivo</h2>
-                    <div class="content">${summary}</div>
-                    <h2>Transcripción Completa</h2>
+                    <div class="date">${date}</div>
+                    
+                    <h2>📝 RESUMEN EJECUTIVO</h2>
+                    <div class="summary-box">
+                        <div class="content">${summary}</div>
+                    </div>
+                    
+                    <h2>🎙️ TRANSCRIPCIÓN COMPLETA</h2>
                     <div class="content">${transcript}</div>
                 </body>
             </html>
         `);
         printWindow.document.close();
-        printWindow.print();
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
     }
+};
+
+function renderInfographic(data) {
+    const container = document.getElementById('infographicContainer');
+    const content = document.getElementById('infographicContent');
+    container.classList.remove('hidden');
+
+    content.innerHTML = `
+        <div class="glass p-3 rounded-2xl border border-white/5 text-center">
+            <span class="text-[8px] text-slate-500 uppercase block mb-1">Sentimiento</span>
+            <span class="text-xs font-bold text-white">${data.sentimiento}</span>
+        </div>
+        <div class="glass p-3 rounded-2xl border border-white/5 text-center">
+            <span class="text-[8px] text-slate-500 uppercase block mb-1">Relevancia</span>
+            <span class="text-xs font-bold text-blue-400">${data.relevancia}%</span>
+        </div>
+        <div class="glass p-3 rounded-2xl border border-white/5 text-center col-span-2">
+            <span class="text-[8px] text-slate-500 uppercase block mb-1">Palabras Clave</span>
+            <div class="flex flex-wrap justify-center gap-1 mt-1">
+                ${data.palabras_clave.map(w => `<span class="px-2 py-0.5 bg-white/5 rounded-full text-[9px] text-slate-300">${w}</span>`).join('')}
+            </div>
+        </div>
+    `;
+}
+
+window.resetZoom = () => {
+    if (panZoomInstance) panZoomInstance.reset();
 };
 
 // UI State Toggles

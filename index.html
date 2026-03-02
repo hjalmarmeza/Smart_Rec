@@ -12,6 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0"
         rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
     <link rel="stylesheet" href="style.css?v=2.2">
     <style>
         /* Estilos críticos para asegurar visibilidad inmediata */
@@ -178,15 +179,34 @@
                             Redactando...
                         </div>
 
+                        <!-- Infographic Section -->
+                        <div id="infographicContainer" class="mt-6 pt-6 border-t border-white/5 hidden">
+                            <span
+                                class="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-4 text-center">Infografía
+                                de Relevancia</span>
+                            <div id="infographicContent" class="grid grid-cols-2 gap-4">
+                                <!-- Injected Infographic Cards -->
+                            </div>
+                        </div>
+
                         <!-- Mental Map Section -->
                         <div id="mindmapContainer" class="mt-6 pt-6 border-t border-white/5 hidden">
-                            <span
-                                class="text-[10px] font-black text-emerald-400 uppercase tracking-widest block mb-4 text-center">Mapa
-                                Mental de la Sesión</span>
-                            <div id="mermaidDiagram"
-                                class="mermaid flex justify-center bg-white/5 rounded-2xl p-4 overflow-x-auto">
-                                <!-- Mindmap goes here -->
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Mapa
+                                    Mental Interactivo</span>
+                                <div class="flex gap-1">
+                                    <button onclick="resetZoom()"
+                                        class="w-6 h-6 glass rounded-md flex items-center justify-center text-[10px] text-slate-400 hover:text-white">RESET</button>
+                                </div>
                             </div>
+                            <div id="mermaidWrapper"
+                                class="bg-white/5 rounded-2xl p-2 h-[300px] overflow-hidden cursor-move">
+                                <div id="mermaidDiagram" class="mermaid h-full w-full flex justify-center">
+                                    <!-- Mindmap goes here -->
+                                </div>
+                            </div>
+                            <p class="text-[8px] text-slate-500 mt-2 text-center uppercase tracking-widest">Usa el mouse
+                                para Zoom y Arrastrar</p>
                         </div>
                     </div>
 
@@ -318,7 +338,7 @@
             </div>
         </div>
 
-        <script src="app.js?v=7.0"></script>
+        <script src="app.js?v=8.0"></script>
 </body>
 
 </html>
