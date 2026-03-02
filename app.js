@@ -112,6 +112,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     await initDB();
     loadKey();
     initEventListeners();
+
+    // CRITICAL: Clear search input on startup so browser autocomplete doesn't filter out repos
+    if (elements.searchInput) elements.searchInput.value = '';
+    if (elements.projectFilter) elements.projectFilter.value = 'all';
+
     renderHistory();
 
     // Recovery Check
@@ -569,6 +574,11 @@ async function updateStorageMeter() {
 
 window.openSessionById = async (id) => {
     try {
+        // Reset filters so history doesn't show empty after opening
+        if (elements.searchInput) elements.searchInput.value = '';
+        if (elements.projectFilter) elements.projectFilter.value = 'all';
+        window._cachedOptionsHTML = null; // Force filter dropdown to refresh
+
         const tx = db.transaction('sessions', 'readonly');
         const s = await new Promise((r, reject) => {
             const req = tx.objectStore('sessions').get(parseInt(id));
