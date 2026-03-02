@@ -280,13 +280,13 @@ async function analyzeSession() {
                             {
                                 role: "system",
                                 content: `Eres un analista de élite para directivos de alto impacto. 
-                                OBJETIVO: Destilar conocimiento puro. NO rellenos.
-                                SI HAY VARIOS SUJETOS: Identifica los acuerdos y desacuerdos entre ellos.
+                                OBJETIVO: Destilar conocimiento profundo y exhaustivo de la transcripción.
+                                Misión: El usuario necesita un resumen ejecutivo ALTAMENTE DETALLADO. No escatimes en información, elabora conclusiones profundas.
                                 
                                 GENERAR RESPUESTA EN JSON PURO:
                                 {
                                   "titulo": "Título Ejecutivo Potente",
-                                  "resumen": "Resumen de alto nivel con: 1. Contexto Maestro. 2. Puntos Estratégicos. 3. Compromisos y Dueños de acción.",
+                                  "resumen": "Genera un texto extenso, organizado en párrafos ricos en detalle. Debes incluir: 1. Contexto Maestro (¿Qué está pasando exactamente y por qué?). 2. Debate y Argumentos (Si hay varios sujetos, detalla meticulosamente los acuerdos, desacuerdos, y posturas de cada uno con ejemplos de lo que dijeron). 3. Datos Duros (Fechas, cifras, nombres, lugares y métricas mencionadas). 4. Próximos Pasos (Resoluciones detalladas, responsables y fechas límite). Evita resúmenes telegráficos; usa una narrativa analítica completa y profesional que exponga todo el peso de la reunión o audio.",
                                   "mindmap": "Código Mermaid de tipo mindmap (Usa colores y jerarquía clara).",
                                   "slides": [{"title":"Master Slide", "content":"Executive Insight"}],
                                   "infografia": {"sentimiento": "Optimista/Crítico", "relevancia": "Score 0-100", "palabras_clave": ["Insight1", "Insight2"]}
