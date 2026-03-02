@@ -441,45 +441,35 @@ window.copyNoteById = async (id) => {
     navigator.clipboard.writeText(text);
     alert("Copiado al portapapeles.");
 };
-window.deleteSessionById = async (id, event) => {
-    // Evitar que el evento suba
+window.deleteSessionById = (id, event) => {
     if (event) {
         event.preventDefault();
         event.stopPropagation();
     }
 
-    if (!confirm("¿Estás seguro de eliminar esta sesión para siempre?")) return;
+    if (!confirm("¿Estás seguro de eliminar esta sesión para siempre?")) return false;
 
-    // Encontrar la tarjeta específica en la pantalla
-    let card = null;
-    if (event && event.target) {
-        card = event.target.closest('.glass-card');
+    // Remove from DOM immediately to prevent any browser focus or hash jumps
+    const cardElement = event.target ? event.target.closest('.glass-card') : null;
+    if (cardElement) {
+        cardElement.style.display = 'none';
+        setTimeout(() => cardElement.remove(), 10);
     }
 
+    // Delete from DB in background
     const tx = db.transaction('sessions', 'readwrite');
     const store = tx.objectStore('sessions');
-    await new Promise(r => {
-        const req = store.delete(parseInt(id));
-        req.onsuccess = () => r();
-    });
+    store.delete(parseInt(id));
 
-    // Simplemente desvanecemos y removemos *únicamente* esta tarjeta de la pantalla
-    // Esto evita que Safari/Chrome redibujen la página entera y salten al tope.
-    if (card) {
-        card.style.opacity = '0';
-        card.style.transform = 'scale(0.9)';
-        setTimeout(() => {
-            card.remove();
-            // Si el contenedor queda vacío después de borrar, mostramos el mensaje de "Repo vacío"
-            const hList = document.getElementById('historyList');
-            if (hList && hList.children.length === 0) {
-                hList.innerHTML = '<p class="text-xs text-slate-600 text-center">Repo vacío</p>';
-            }
-        }, 300);
-    } else {
-        // En caso de fallo en encontrar la tarjeta, caemos de pie repintando la lista
-        await renderHistory();
-    }
+    // Check if empty to show label
+    setTimeout(() => {
+        const hList = document.getElementById('historyList');
+        if (hList && hList.children.length === 0) {
+            hList.innerHTML = '<p class="text-xs text-slate-600 text-center">Repo vacío</p>';
+        }
+    }, 50);
+
+    return false;
 };
 
 window.downloadRepoAudio = async (id) => {
