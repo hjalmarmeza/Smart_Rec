@@ -446,15 +446,25 @@ window.deleteSessionById = async (id, event) => {
     if (event) {
         event.preventDefault();
         event.stopPropagation();
+        if (event.currentTarget) event.currentTarget.blur();
     }
+    const scrollPos = window.scrollY;
+
     if (!confirm("¿Estás seguro de eliminar esta sesión para siempre?")) return;
+
     const tx = db.transaction('sessions', 'readwrite');
     const store = tx.objectStore('sessions');
     await new Promise(r => {
         const req = store.delete(parseInt(id));
         req.onsuccess = () => r();
     });
-    renderHistory();
+
+    await renderHistory();
+
+    // Prevent browser focus jump when element is destroyed
+    setTimeout(() => {
+        window.scrollTo(0, scrollPos);
+    }, 10);
 };
 
 window.downloadRepoAudio = async (id) => {
