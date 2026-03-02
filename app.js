@@ -453,8 +453,11 @@ window.deleteSessionById = async (id, event) => {
     if (!confirm("¿Estás seguro de eliminar esta sesión para siempre?")) return;
 
     // Prevenir el salto repentino bloqueando la altura del contendor padre temporalmente
+    // Y transfiriendo el foco al padre para que el navegador no salte al <body>
     const hList = document.getElementById('historyList');
     if (hList) {
+        hList.tabIndex = -1;
+        hList.focus({ preventScroll: true });
         hList.style.minHeight = hList.offsetHeight + 'px';
     }
 
