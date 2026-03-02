@@ -250,7 +250,7 @@ async function analyzeSession() {
                     console.warn("Utterances too short, using full channel transcript.");
                     transcriptionText = fullTranscript;
                 } else {
-                    transcriptionText = utterances.map(u => `[Sujeto ${u.speaker}]: ${u.transcript}`).join('\n\n');
+                    transcriptionText = utterances.map(u => `[Voz ${u.speaker + 1}]: ${u.transcript}`).join('\n\n');
                 }
             } else {
                 transcriptionText = fullTranscript;
@@ -680,27 +680,66 @@ window.exportNote = async (format) => {
         a.download = `${title}.md`;
         a.click();
     } else if (format === 'pdf') {
+        // Enhance raw transcript with UI color bubbles for speakers dynamically
+        const styledTranscript = transcript.replace(/\[((Voz|Sujeto)\s+\d+)\]:/g, '<div class="speaker-tag">$1</div>');
+
         const win = window.open('', '_blank');
         win.document.write(`
             <html>
-                <head><title>${title}</title><style>
-                    body { font-family: sans-serif; padding: 40px; line-height: 1.6; }
-                    h1 { color: #6366f1; border-bottom: 2px solid #6366f1; }
-                    .box { background: #f9fafb; padding: 20px; border-left: 5px solid #6366f1; margin: 20px 0; }
-                    .content { white-space: pre-wrap; font-size: 10pt; }
-                </style></head>
+                <head>
+                    <title>${title}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet">
+                    <style>
+                        @page { size: A4; margin: 20mm; }
+                        @media print { html, body { width: 100%; height: 100%; margin: 0; padding: 0; } }
+                        body { 
+                            font-family: 'Inter', sans-serif; 
+                            line-height: 1.6; 
+                            color: #1e293b; 
+                            background: #ffffff;
+                            margin: 0;
+                            padding: 0;
+                        }
+                        .header-brand {
+                            text-align: right; font-size: 8pt; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 2px;
+                            border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 40px;
+                        }
+                        h1 { color: #0f172a; font-size: 24pt; font-weight: 900; letter-spacing: -1px; margin-bottom: 5px; line-height: 1.2; }
+                        .date { color: #64748b; font-size: 10pt; font-weight: 700; margin-bottom: 40px; }
+                        h2 { 
+                            color: #6366f1; font-size: 14pt; padding-bottom: 8px; border-bottom: 2px solid #e0e7ff; 
+                            margin-top: 50px; text-transform: uppercase; letter-spacing: 1px;
+                        }
+                        .box { 
+                            background: #f8fafc; padding: 25px; border-left: 5px solid #6366f1; border-radius: 4px 8px 8px 4px;
+                            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+                        }
+                        .content { white-space: pre-wrap; font-size: 10pt; color: #334155; }
+                        .speaker-tag {
+                            display: inline-block; background: #e0e7ff; color: #4f46e5; padding: 2px 8px; 
+                            border-radius: 4px; font-weight: 800; font-size: 8pt; text-transform: uppercase;
+                            margin-top: 15px; margin-bottom: 2px;
+                        }
+                        .footer { margin-top: 50px; text-align: center; font-size: 8pt; color: #cbd5e1; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+                    </style>
+                </head>
                 <body>
+                    <div class="header-brand">Smart Recorder / Reporte Analítico</div>
                     <h1>${title}</h1>
-                    <p>${date}</p>
-                    <h2>📝 RESUMEN EJECUTIVO</h2>
+                    <div class="date">${date}</div>
+                    
+                    <h2>Resumen Ejecutivo</h2>
                     <div class="box"><div class="content">${sessionResumen}</div></div>
-                    <h2>🎙️ TRANSCRIPCIÓN</h2>
-                    <div class="content">${transcript}</div>
+                    
+                    <h2>Transcripción Oficial</h2>
+                    <div class="content" style="padding: 10px 0;">${styledTranscript}</div>
+
+                    <div class="footer">Documento generado automáticamente por IA a través de Smart Recorder.</div>
                 </body>
             </html>
         `);
         win.document.close();
-        setTimeout(() => win.print(), 500);
+        setTimeout(() => win.print(), 800);
     }
 };
 
@@ -733,11 +772,20 @@ window.exportSlidesPDF = () => {
 
     const pagesHTML = currentSlides.map((s, index) => {
         return `
-            <div style="page-break-after: always; min-height: 90vh; display: flex; flex-direction: column; justify-content: center; padding: 40px; background: #fdfdfd; font-family: sans-serif;">
-                <h1 style="font-size: 38pt; font-weight: 900; color: #1e1b4b; margin-bottom: 30px; letter-spacing: -1px; border-bottom: 4px solid #8b5cf6; padding-bottom: 10px;">${s.title}</h1>
-                <div style="font-size: 16pt; line-height: 1.8; color: #334155; white-space: pre-wrap; font-weight: 300;">${s.content}</div>
-                <div style="margin-top: auto; text-align: right; font-size: 10pt; color: #94a3b8; font-weight: bold; border-top: 1px solid #e2e8f0; padding-top: 10px;">
-                    Diapositiva ${index + 1} de ${currentSlides.length}
+            <div style="page-break-after: always; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-start; padding: 12mm; background: #ffffff; position: relative;">
+                <!-- Header -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 30px;">
+                    <h1 style="font-size: 26pt; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -1px; width: 80%;">${s.title}</h1>
+                    <div style="font-size: 8pt; font-weight: 800; color: #8b5cf6; text-transform: uppercase; background: #f3f4f6; padding: 4px 10px; border-radius: 20px;">Pag. ${index + 1} / ${currentSlides.length}</div>
+                </div>
+                
+                <!-- Content Box -->
+                <div style="font-size: 13pt; line-height: 1.7; color: #334155; white-space: pre-wrap; font-weight: 400; flex-grow: 1; text-align: justify; text-justify: inter-word;">${s.content}</div>
+                
+                <!-- Footer -->
+                <div style="margin-top: auto; border-top: 1px solid #f8fafc; padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 8pt; font-weight: bold; color: #cbd5e1; letter-spacing: 1px;">SMART RECORDER</span>
+                    <span style="font-size: 8pt; color: #94a3b8;">${coverDate}</span>
                 </div>
             </div>
         `;
@@ -745,13 +793,22 @@ window.exportSlidesPDF = () => {
 
     const win = window.open('', '_blank');
     win.document.write(`
-        <html><head><title>${title}</title></head>
-        <body style="margin: 0; padding: 0;">
+        <html><head>
+            <title>${title}</title>
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet">
+            <style>
+                @page { size: A4 landscape; margin: 0; }
+                @media print { html, body { width: 100%; height: 100%; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; box-sizing: border-box; }
+            </style>
+        </head>
+        <body>
             <!-- Cover Page -->
-            <div style="page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; background: #0f172a; color: white; text-align: center; font-family: sans-serif; padding: 40px;">
-                <h1 style="font-size: 50pt; font-weight: 900; margin-bottom: 20px; color: #8b5cf6;">${title}</h1>
-                <p style="font-size: 14pt; letter-spacing: 2px; color: #cbd5e1;">GENERADO POR IA / SMART RECORDER</p>
-                <p style="font-size: 12pt; color: #94a3b8; margin-top: 50px;">${coverDate}</p>
+            <div style="page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; background: #0f172a; color: white; text-align: center; padding: 40px; border: 15px solid #8b5cf6; box-sizing: border-box;">
+                <h1 style="font-size: 45pt; font-weight: 900; margin-bottom: 25px; color: #ffffff; line-height: 1.1;">${title}</h1>
+                <div style="width: 100px; height: 4px; background: #8b5cf6; margin-bottom: 30px;"></div>
+                <p style="font-size: 12pt; letter-spacing: 4px; color: #94a3b8; text-transform: uppercase;">Presentación Generada por Inteligencia Artificial</p>
+                <div style="position: absolute; bottom: 40px; font-size: 10pt; color: #475569; font-weight: 700;">${coverDate}</div>
             </div>
             ${pagesHTML}
         </body></html>
