@@ -616,6 +616,64 @@ window.exportNote = async (format) => {
     }
 };
 
+window.exportMindmapPDF = () => {
+    const svgElement = document.querySelector('#mermaidDiagram svg');
+    if (!svgElement) return alert("El mapa aún no ha sido dibujado.");
+
+    // Extraer el esquema visual y renderizarlo nativamente en una ventana de impresión
+    const win = window.open('', '_blank');
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+    win.document.write(`
+        <html><head><title>Mapa Mental - Smart Recorder</title></head>
+        <body style="margin: 0; padding: 20px; display: flex; align-items: flex-start; justify-content: flex-start; min-height: 100vh; font-family: sans-serif;">
+            <div style="width: 100%;">
+                <h1 style="color: #6366f1; border-bottom: 2px solid #6366f1; padding-bottom: 10px; margin-bottom: 20px;">Mapa Conceptual Visual</h1>
+                ${svgData}
+            </div>
+        </body></html>
+    `);
+    win.document.close();
+    setTimeout(() => {
+        win.print();
+    }, 800);
+};
+
+window.exportSlidesPDF = () => {
+    if (!currentSlides || currentSlides.length === 0) return alert("No hay diapositivas listas.");
+    const title = elements.sessionName.value || "Presentación AI";
+    const coverDate = new Date().toLocaleString();
+
+    const pagesHTML = currentSlides.map((s, index) => {
+        return `
+            <div style="page-break-after: always; min-height: 90vh; display: flex; flex-direction: column; justify-content: center; padding: 40px; background: #fdfdfd; font-family: sans-serif;">
+                <h1 style="font-size: 38pt; font-weight: 900; color: #1e1b4b; margin-bottom: 30px; letter-spacing: -1px; border-bottom: 4px solid #8b5cf6; padding-bottom: 10px;">${s.title}</h1>
+                <div style="font-size: 16pt; line-height: 1.8; color: #334155; white-space: pre-wrap; font-weight: 300;">${s.content}</div>
+                <div style="margin-top: auto; text-align: right; font-size: 10pt; color: #94a3b8; font-weight: bold; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                    Diapositiva ${index + 1} de ${currentSlides.length}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    const win = window.open('', '_blank');
+    win.document.write(`
+        <html><head><title>${title}</title></head>
+        <body style="margin: 0; padding: 0;">
+            <!-- Cover Page -->
+            <div style="page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; background: #0f172a; color: white; text-align: center; font-family: sans-serif; padding: 40px;">
+                <h1 style="font-size: 50pt; font-weight: 900; margin-bottom: 20px; color: #8b5cf6;">${title}</h1>
+                <p style="font-size: 14pt; letter-spacing: 2px; color: #cbd5e1;">GENERADO POR IA / SMART RECORDER</p>
+                <p style="font-size: 12pt; color: #94a3b8; margin-top: 50px;">${coverDate}</p>
+            </div>
+            ${pagesHTML}
+        </body></html>
+    `);
+    win.document.close();
+    setTimeout(() => {
+        win.print();
+    }, 1000);
+};
+
 function renderInfographic(data) {
     const container = document.getElementById('infographicContainer');
     const content = document.getElementById('infographicContent');
