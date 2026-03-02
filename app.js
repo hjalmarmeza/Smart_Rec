@@ -144,6 +144,7 @@ async function startFocus() {
 function stopFocus() {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
         stopTimer();
         uiFinished();
     }
