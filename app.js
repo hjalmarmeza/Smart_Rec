@@ -363,9 +363,14 @@ async function renderHistory() {
                 <span class="text-[8px] text-slate-500">${s.date}</span>
             </div>
             <p class="text-[10px] text-slate-300 line-clamp-2 mb-3">${s.summary}</p>
-            <div class="flex gap-4">
-                <button onclick="copyNoteById('${s.id}')" class="text-[9px] font-black text-slate-500 hover:text-white uppercase transition-all">Copiar</button>
-                <button onclick="downloadRepoAudio(${s.id})" class="text-[9px] font-black text-blue-400 hover:text-white uppercase transition-all">Audio</button>
+            <div class="flex items-center justify-between">
+                <div class="flex gap-4">
+                    <button onclick="copyNoteById('${s.id}')" class="text-[9px] font-black text-slate-500 hover:text-white uppercase transition-all">Copiar</button>
+                    <button onclick="downloadRepoAudio(${s.id})" class="text-[9px] font-black text-blue-400 hover:text-white uppercase transition-all">Audio</button>
+                </div>
+                <button onclick="deleteSessionById(${s.id})" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-red-400 transition-all" title="Eliminar definitivamente">
+                    <span class="material-symbols-rounded text-sm">delete</span>
+                </button>
             </div>
         </div>
     `).join('');
@@ -377,6 +382,17 @@ window.copyNoteById = async (id) => {
     const text = `PROYECTO: ${s.name}\nFECHA: ${s.date}\n\nRESUMEN:\n${s.summary}\n\nTRANSCRIPCIÓN:\n${s.transcript}`;
     navigator.clipboard.writeText(text);
     alert("Copiado al portapapeles.");
+};
+
+window.deleteSessionById = async (id) => {
+    if (!confirm("¿Estás seguro de eliminar esta sesión para siempre?")) return;
+    const tx = db.transaction('sessions', 'readwrite');
+    const store = tx.objectStore('sessions');
+    await new Promise(r => {
+        const req = store.delete(parseInt(id));
+        req.onsuccess = () => r();
+    });
+    renderHistory();
 };
 
 window.downloadRepoAudio = async (id) => {
