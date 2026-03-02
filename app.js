@@ -439,34 +439,35 @@ async function renderHistory() {
 
     const uniqueProjects = [...new Set(sessions.map(s => safeString(s.name)))].filter(x => x);
 
-    // Rebuild unconditionally using URI encoding to completely bypass HTML attribute character normalization
-    elements.projectFilter.innerHTML = '<option value="all">TODOS</option>' +
-        uniqueProjects.map(p => {
-            return `<option value="${encodeURIComponent(p)}">${p.replace(/</g, '&lt;').replace(/>/g, '&gt;').toUpperCase()}</option>`;
-        }).join('');
-
-    // Safely restore selection by checking both encoded and raw states
-    if (currentSelectValue && currentSelectValue !== 'all') {
-        try {
-            const decoded = decodeURIComponent(currentSelectValue);
-            if (uniqueProjects.includes(decoded)) {
-                elements.projectFilter.value = currentSelectValue;
-            } else if (uniqueProjects.includes(currentSelectValue)) {
-                elements.projectFilter.value = encodeURIComponent(currentSelectValue);
-            } else {
-                elements.projectFilter.value = 'all';
+    // Memory caching to prevent DOM dropdown wipe-outs and URIError crashes
+    if (!window._cachedProjects || window._cachedProjects.join('|') !== uniqueProjects.join('|')) {
+        let previousActiveProject = 'all';
+        if (window._cachedProjects && elements.projectFilter.value !== 'all') {
+            const oldIndex = parseInt(elements.projectFilter.value);
+            if (!isNaN(oldIndex) && window._cachedProjects[oldIndex]) {
+                previousActiveProject = window._cachedProjects[oldIndex];
             }
-        } catch (e) {
+        }
+
+        window._cachedProjects = uniqueProjects;
+
+        // Rebuild only when actual projects change, use numeric indices avoiding any special character breaks
+        elements.projectFilter.innerHTML = '<option value="all">TODOS</option>' +
+            uniqueProjects.map((p, index) => {
+                return `<option value="${index}">${p.replace(/</g, '&lt;').replace(/>/g, '&gt;').toUpperCase()}</option>`;
+            }).join('');
+
+        // Restore active selection gracefully
+        if (previousActiveProject !== 'all') {
+            const newIndex = uniqueProjects.indexOf(previousActiveProject);
+            elements.projectFilter.value = newIndex !== -1 ? newIndex.toString() : 'all';
+        } else {
             elements.projectFilter.value = 'all';
         }
-    } else {
-        elements.projectFilter.value = 'all';
     }
 
-    // Force re-read the active project, cleanly decoding back to exact memory string format
-    const activeProject = elements.projectFilter.value === 'all'
-        ? 'all'
-        : decodeURIComponent(elements.projectFilter.value);
+    const val = elements.projectFilter.value;
+    const activeProject = val === 'all' ? 'all' : (window._cachedProjects[parseInt(val)] || 'all');
 
     const filtered = sessions.filter(s => {
         const textStr = safeString(s.summary) + " " + safeString(s.transcript) + " " + safeString(s.name);
