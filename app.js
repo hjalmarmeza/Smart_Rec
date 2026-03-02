@@ -58,42 +58,48 @@ async function getHistoryFromRepo() {
 }
 
 // --- UI & Elements ---
-const elements = {
-    recordBtn: document.getElementById('recordBtn'),
-    recordIcon: document.getElementById('recordIcon'),
-    recordRing: document.getElementById('recordRing'),
-    timerDisplay: document.getElementById('timerDisplay'),
-    status: document.getElementById('recordingStatus'),
-    controls: document.getElementById('recordingControls'),
-    cancelBtn: document.getElementById('cancelBtn'),
-    saveBtn: document.getElementById('saveBtn'),
-    downloadBtn: document.getElementById('downloadBtn'),
-    pauseBtn: document.getElementById('pauseBtn'),
-    pauseIcon: document.getElementById('pauseIcon'),
-    resultArea: document.getElementById('resultArea'),
-    aiSummary: document.getElementById('aiSummary'),
-    aiTranscript: document.getElementById('aiTranscript'),
-    sessionName: document.getElementById('sessionName'),
-    progressBar: document.getElementById('progressBar'),
-    progressContainer: document.getElementById('analysisProgress'),
-    historyList: document.getElementById('historyList'),
-    settingsBtn: document.getElementById('settingsBtn'),
-    settingsModal: document.getElementById('settingsModal'),
-    sfKeyInput: document.getElementById('sfKey'),
-    deepgramKeyInput: document.getElementById('deepgramKey'),
-    serverSelect: document.getElementById('serverSelect'),
-    sourceMic: document.getElementById('sourceMic'),
-    sourceSystem: document.getElementById('sourceSystem'),
-    currentSizeLabel: document.getElementById('currentSize'),
-    fileSizeInfo: document.getElementById('fileSizeInfo'),
-    searchInput: document.getElementById('searchInput'),
-    projectFilter: document.getElementById('projectFilter')
-};
+let elements = {};
+
+function populateElements() {
+    elements = {
+        recordBtn: document.getElementById('recordBtn'),
+        recordIcon: document.getElementById('recordIcon'),
+        recordRing: document.getElementById('recordRing'),
+        timerDisplay: document.getElementById('timerDisplay'),
+        status: document.getElementById('recordingStatus'),
+        controls: document.getElementById('recordingControls'),
+        cancelBtn: document.getElementById('cancelBtn'),
+        saveBtn: document.getElementById('saveBtn'),
+        downloadBtn: document.getElementById('downloadBtn'),
+        pauseBtn: document.getElementById('pauseBtn'),
+        pauseIcon: document.getElementById('pauseIcon'),
+        resultArea: document.getElementById('resultArea'),
+        aiSummary: document.getElementById('aiSummary'),
+        aiTranscript: document.getElementById('aiTranscript'),
+        sessionName: document.getElementById('sessionName'),
+        progressBar: document.getElementById('progressBar'),
+        progressContainer: document.getElementById('analysisProgress'),
+        historyList: document.getElementById('historyList'),
+        settingsBtn: document.getElementById('settingsBtn'),
+        settingsModal: document.getElementById('settingsModal'),
+        sfKeyInput: document.getElementById('sfKey'),
+        deepgramKeyInput: document.getElementById('deepgramKey'),
+        serverSelect: document.getElementById('serverSelect'),
+        sourceMic: document.getElementById('sourceMic'),
+        sourceSystem: document.getElementById('sourceSystem'),
+        currentSizeLabel: document.getElementById('currentSize'),
+        fileSizeInfo: document.getElementById('fileSizeInfo'),
+        searchInput: document.getElementById('searchInput'),
+        projectFilter: document.getElementById('projectFilter')
+    };
+}
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
+    populateElements();
     await initDB();
     loadKey();
+    initEventListeners();
     renderHistory();
 
     // Recovery Check
@@ -582,39 +588,60 @@ function startTimer() {
 function stopTimer() { clearInterval(timerInterval); }
 
 // Event Handlers
-elements.recordBtn.onclick = () => {
-    if (!mediaRecorder || mediaRecorder.state === 'inactive') startFocus();
-    else stopFocus();
-};
+function initEventListeners() {
+    elements.recordBtn.onclick = () => {
+        if (!mediaRecorder || mediaRecorder.state === 'inactive') startFocus();
+        else stopFocus();
+    };
 
-elements.pauseBtn.onclick = () => {
-    if (mediaRecorder.state === 'recording') {
-        mediaRecorder.pause();
-        accumulatedTime += Date.now() - startTime;
-        stopTimer();
-        elements.pauseIcon.innerText = 'play_arrow';
-    } else {
-        mediaRecorder.resume();
-        startTime = Date.now();
-        startTimer();
-        elements.pauseIcon.innerText = 'pause';
-    }
-};
+    elements.pauseBtn.onclick = () => {
+        if (mediaRecorder.state === 'recording') {
+            mediaRecorder.pause();
+            accumulatedTime += Date.now() - startTime;
+            stopTimer();
+            elements.pauseIcon.innerText = 'play_arrow';
+        } else {
+            mediaRecorder.resume();
+            startTime = Date.now();
+            startTimer();
+            elements.pauseIcon.innerText = 'pause';
+        }
+    };
 
-elements.saveBtn.onclick = analyzeSession;
+    elements.saveBtn.onclick = analyzeSession;
 
-elements.cancelBtn.onclick = () => {
-    if (confirm("¿Limpiar repositorio actual?")) location.reload();
-};
+    elements.cancelBtn.onclick = () => {
+        if (confirm("¿Limpiar repositorio actual?")) location.reload();
+    };
 
-elements.downloadBtn.onclick = () => {
-    const blob = new Blob(audioChunks, { type: 'audio/webm' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `parts.webm`;
-    a.click();
-};
+    elements.downloadBtn.onclick = () => {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `parts.webm`;
+        a.click();
+    };
+
+    document.getElementById('saveSettings').onclick = () => {
+        if (elements.sfKeyInput) localStorage.setItem('sf_api_key_v2', elements.sfKeyInput.value.trim());
+        if (elements.deepgramKeyInput) localStorage.setItem('deepgram_api_key', elements.deepgramKeyInput.value.trim());
+        if (elements.serverSelect) localStorage.setItem('sf_base_url', elements.serverSelect.value);
+        alert("Configuración Guardada.");
+        elements.settingsModal.classList.add('hidden');
+    };
+
+    elements.settingsBtn.onclick = () => elements.settingsModal.classList.remove('hidden');
+    elements.sourceMic.onclick = () => { currentSource = 'mic'; elements.sourceMic.classList.add('bg-white', 'text-black'); elements.sourceSystem.classList.remove('bg-white', 'text-black'); };
+    elements.sourceSystem.onclick = () => { currentSource = 'system'; elements.sourceSystem.classList.add('bg-white', 'text-black'); elements.sourceMic.classList.remove('bg-white', 'text-black'); };
+
+    elements.searchInput.oninput = renderHistory;
+    elements.projectFilter.onchange = renderHistory;
+
+    // Auto-save on type
+    if (elements.sfKeyInput) elements.sfKeyInput.onkeyup = () => localStorage.setItem('sf_api_key_v2', elements.sfKeyInput.value.trim());
+    if (elements.deepgramKeyInput) elements.deepgramKeyInput.onkeyup = () => localStorage.setItem('deepgram_api_key', elements.deepgramKeyInput.value.trim());
+}
 
 function loadKey() {
     const k = localStorage.getItem('sf_api_key_v2');
@@ -624,21 +651,6 @@ function loadKey() {
     const s = localStorage.getItem('sf_base_url');
     if (s && elements.serverSelect) elements.serverSelect.value = s;
 }
-
-document.getElementById('saveSettings').onclick = () => {
-    if (elements.sfKeyInput) localStorage.setItem('sf_api_key_v2', elements.sfKeyInput.value.trim());
-    if (elements.deepgramKeyInput) localStorage.setItem('deepgram_api_key', elements.deepgramKeyInput.value.trim());
-    if (elements.serverSelect) localStorage.setItem('sf_base_url', elements.serverSelect.value);
-    alert("Configuración Guardada.");
-    elements.settingsModal.classList.add('hidden');
-};
-
-elements.settingsBtn.onclick = () => elements.settingsModal.classList.remove('hidden');
-elements.sourceMic.onclick = () => { currentSource = 'mic'; elements.sourceMic.classList.add('bg-white', 'text-black'); elements.sourceSystem.classList.remove('bg-white', 'text-black'); };
-elements.sourceSystem.onclick = () => { currentSource = 'system'; elements.sourceSystem.classList.add('bg-white', 'text-black'); elements.sourceMic.classList.remove('bg-white', 'text-black'); };
-
-elements.searchInput.oninput = renderHistory;
-elements.projectFilter.onchange = renderHistory;
 
 window.toggleVisibility = (id) => {
     const el = document.getElementById(id);
