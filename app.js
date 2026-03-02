@@ -426,7 +426,7 @@ async function renderHistory() {
                     <button onclick="copyNoteById('${s.id}')" class="text-[9px] font-black text-slate-500 hover:text-white uppercase transition-all">Copiar</button>
                     <button onclick="downloadRepoAudio(${s.id})" class="text-[9px] font-black text-blue-400 hover:text-white uppercase transition-all">Audio</button>
                 </div>
-                <button onclick="deleteSessionById(${s.id})" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-red-400 transition-all" title="Eliminar definitivamente">
+                <button type="button" onclick="deleteSessionById(${s.id}, event)" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-red-400 transition-all" title="Eliminar definitivamente">
                     <span class="material-symbols-rounded text-sm">delete</span>
                 </button>
             </div>
@@ -442,7 +442,11 @@ window.copyNoteById = async (id) => {
     alert("Copiado al portapapeles.");
 };
 
-window.deleteSessionById = async (id) => {
+window.deleteSessionById = async (id, event) => {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     if (!confirm("¿Estás seguro de eliminar esta sesión para siempre?")) return;
     const tx = db.transaction('sessions', 'readwrite');
     const store = tx.objectStore('sessions');
