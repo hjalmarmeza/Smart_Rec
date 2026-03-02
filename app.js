@@ -584,7 +584,11 @@ window.deleteSessionById = (id, event) => {
     // Delete from DB in background
     const tx = db.transaction('sessions', 'readwrite');
     const store = tx.objectStore('sessions');
-    store.delete(parseInt(id));
+    const delReq = store.delete(parseInt(id));
+
+    delReq.onsuccess = () => {
+        if (typeof updateStorageMeter === 'function') setTimeout(() => updateStorageMeter(), 200);
+    };
 
     // Check if empty to show label
     setTimeout(() => {
@@ -609,6 +613,7 @@ window.wipeAllSessions = () => {
         req.onsuccess = () => {
             document.getElementById('historyList').innerHTML = '<p class="text-xs text-slate-600 text-center">Bóveda destruida y vaciada exitosamente.</p>';
             alert("Bóveda limpia.");
+            if (typeof updateStorageMeter === 'function') setTimeout(() => updateStorageMeter(), 200);
         };
         req.onerror = () => {
             alert("Error al intentar limpiar la bóveda del navegador.");
