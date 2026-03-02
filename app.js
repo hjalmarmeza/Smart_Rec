@@ -427,23 +427,46 @@ function updateProgress(val, msg) {
 
 async function renderHistory() {
     const sessions = await getHistoryFromRepo();
-    const query = elements.searchInput.value.toLowerCase();
-    const project = elements.projectFilter.value;
+    const query = (elements.searchInput.value || '').toLowerCase();
+    const project = elements.projectFilter.value || 'all';
 
-    const uniqueProjects = [...new Set(sessions.map(s => s.name))];
-    elements.projectFilter.innerHTML = '<option value="all">TODOS</option>' +
-        uniqueProjects.map(p => `<option value="${p}">${p.toUpperCase()}</option>`).join('');
+    // Bullet-proof string extraction for legacy objects or undefined data
+    const safeString = (val) => {
+        if (!val) return "";
+        if (typeof val === 'object') return JSON.stringify(val);
+        return String(val);
+    };
 
-    // Reload the selected filter so it doesn't reset after we update the innerHTML
-    if (project && (project === 'all' || uniqueProjects.includes(project))) {
-        elements.projectFilter.value = project;
-    } else {
-        elements.projectFilter.value = 'all';
+    const uniqueProjects = [...new Set(sessions.map(s => safeString(s.name)))].filter(x => x);
+
+    // Only rebuild dropdown if we need to
+    const currentOptionsCount = elements.projectFilter.options.length - 1; // excluding 'all'
+    if (currentOptionsCount !== uniqueProjects.length) {
+        elements.projectFilter.innerHTML = '<option value="all">TODOS</option>' +
+            uniqueProjects.map(p => {
+                const safeP = p.replace(/"/g, '&quot;');
+                return `<option value="${safeP}">${p.toUpperCase()}</option>`;
+            }).join('');
+
+        // Restore selection safely
+        if (project && (project === 'all' || uniqueProjects.includes(project))) {
+            elements.projectFilter.value = project;
+        } else {
+            elements.projectFilter.value = 'all';
+        }
     }
 
+    // Force re-read the value in case the DOM rejected our fallback
+    const activeProject = elements.projectFilter.value || 'all';
+
     const filtered = sessions.filter(s => {
-        const text = (s.summary + s.transcript + s.name).toLowerCase();
-        return text.includes(query) && (project === 'all' || s.name === project);
+        const textStr = safeString(s.summary) + " " + safeString(s.transcript) + " " + safeString(s.name);
+        const text = textStr.toLowerCase();
+
+        const matchesQuery = !query || text.includes(query);
+        const matchesProject = (activeProject === 'all' || safeString(s.name) === activeProject);
+
+        return matchesQuery && matchesProject;
     });
 
     if (filtered.length === 0) {
