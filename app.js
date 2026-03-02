@@ -442,12 +442,21 @@ window.copyNoteById = async (id) => {
     alert("Copiado al portapapeles.");
 };
 window.deleteSessionById = async (id, event) => {
+    // CAPTURAR EL SCROLL INMEDIATAMENTE ANTES DE QUE CUALQUIER COSA CAMBIE
+    const currentScroll = window.scrollY;
+
     if (event) {
         event.preventDefault();
         event.stopPropagation();
     }
 
     if (!confirm("¿Estás seguro de eliminar esta sesión para siempre?")) return;
+
+    // Prevenir el salto repentino bloqueando la altura del contendor padre temporalmente
+    const hList = document.getElementById('historyList');
+    if (hList) {
+        hList.style.minHeight = hList.offsetHeight + 'px';
+    }
 
     // Encontrar la tarjeta que recibió el clic para hacer una transición suave
     if (event && event.target) {
@@ -466,14 +475,6 @@ window.deleteSessionById = async (id, event) => {
         const req = store.delete(parseInt(id));
         req.onsuccess = () => r();
     });
-
-    // Prevenir el salto repentino bloqueando la altura del contendor padre temporalmente
-    const hList = document.getElementById('historyList');
-    const currentScroll = window.scrollY;
-
-    if (hList) {
-        hList.style.minHeight = hList.offsetHeight + 'px';
-    }
 
     await renderHistory();
 
