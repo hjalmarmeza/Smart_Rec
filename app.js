@@ -306,8 +306,13 @@ async function analyzeSession() {
                                 {
                                   "titulo": "Título Ejecutivo Potente",
                                   "resumen": "Genera un texto extenso, organizado en párrafos ricos en detalle. Debes incluir: 1. Contexto Maestro (¿Qué está pasando exactamente y por qué?). 2. Debate y Argumentos (Si hay varios sujetos, detalla meticulosamente los acuerdos, desacuerdos, y posturas de cada uno con ejemplos de lo que dijeron). 3. Datos Duros (Fechas, cifras, nombres, lugares y métricas mencionadas). 4. Próximos Pasos (Resoluciones detalladas, responsables y fechas límite). Evita resúmenes telegráficos; usa una narrativa analítica completa y profesional que exponga todo el peso de la reunión o audio.",
-                                  "mindmap": "Código Mermaid de tipo mindmap (Usa colores y jerarquía clara).",
-                                  "slides": [{"title":"Master Slide", "content":"Executive Insight"}],
+                                  "mindmap": "Código Mermaid de tipo mindmap (Usa colores y jerarquía clara). REGLA CRÍTICA: JAMÁS uses términos como 'Sujeto 0' o 'Sujeto 1'. Deduce su profesión, rol o pon un nombre genérico (Entrevistador, Cliente, Experto).",
+                                  "slides": [
+                                    {
+                                      "title": "Título Slide 1", 
+                                      "content": "Párrafos súper extensos y detallados. Incluye tablas Markdown, métricas clave, o mini-gráficos ASCII (e.g. [██████░░ 80%]) y comentarios estratégicos profundos. MÍNIMO 5-8 slides con mucho texto, datos estructurados y valor informativo. NADA de slides cortas de dos líneas."
+                                    }
+                                  ],
                                   "infografia": {"sentimiento": "Optimista/Crítico", "relevancia": "Score 0-100", "palabras_clave": ["Insight1", "Insight2"]}
                                 }`
                             },
