@@ -219,13 +219,10 @@ async function analyzeSession() {
         const dgParams = new URLSearchParams({
             model: 'nova-2',
             smart_format: 'true',
-            diarize: 'true',
             detect_language: 'true',
-            language: 'es', // Preferred starting language
-            alternate_languages: 'en', // For perfect Spanglish support
-            utterances: 'true',
+            diarize: 'true',
             punctuate: 'true',
-            filler_words: 'true' // Captures everything
+            utterances: 'true'
         });
 
         const dgRes = await fetch(`https://api.deepgram.com/v1/listen?${dgParams}`, {
@@ -239,12 +236,21 @@ async function analyzeSession() {
         if (dgRes.ok) {
             const dgData = await dgRes.json();
 
-            // Reconstruct transcription with Speaker Labels
+            // HYBRID ENGINE: Combines Utterances (Speakers) with Channel Transcript (Full Text)
             const utterances = dgData.results.utterances;
+            const fullTranscript = dgData.results.channels[0].alternatives[0].transcript;
+
             if (utterances && utterances.length > 0) {
-                transcriptionText = utterances.map(u => `Sujeto ${u.speaker}: ${u.transcript}`).join('\n\n');
+                // If utterances are too short compared to full transcript, use full transcript
+                const utterancesText = utterances.map(u => u.transcript).join(' ');
+                if (utterancesText.length < fullTranscript.length * 0.8) {
+                    console.warn("Utterances too short, using full channel transcript.");
+                    transcriptionText = fullTranscript;
+                } else {
+                    transcriptionText = utterances.map(u => `[Sujeto ${u.speaker}]: ${u.transcript}`).join('\n\n');
+                }
             } else {
-                transcriptionText = dgData.results.channels[0].alternatives[0].transcript;
+                transcriptionText = fullTranscript;
             }
         } else {
             throw new Error("Fallo en Deepgram.");
