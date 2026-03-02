@@ -399,7 +399,10 @@ async function analyzeSession() {
             date: new Date().toLocaleString(),
             summary: summaryForStorage,
             transcript: transcriptionText,
-            audioBlob: audioBlob
+            audioBlob: audioBlob,
+            mindmap: currentMindmapCode,
+            slides: currentSlides,
+            infografia: infografia || null
         };
 
         if (currentDbId !== null) {
@@ -453,13 +456,13 @@ async function renderHistory() {
             optionsHTML += `<option value="${safeB64}">${displayP}</option>`;
         });
 
-        // 2. Prevent DOM tearing: only update if options mathematically changed
-        if (elements.projectFilter.innerHTML.length !== optionsHTML.length) {
+        // 2. Prevent DOM tearing using strict variable caching instead of reading mutable innerHTML back
+        if (window._cachedOptionsHTML !== optionsHTML) {
+            window._cachedOptionsHTML = optionsHTML;
             elements.projectFilter.innerHTML = optionsHTML;
             // Best effort to restore previous selection
             if (currentSelectValue && currentSelectValue !== 'all') {
                 try {
-                    // Test if it's a valid b64 from our logic
                     decodeDBString(currentSelectValue);
                     elements.projectFilter.value = currentSelectValue;
                 } catch (e) {
@@ -492,13 +495,16 @@ async function renderHistory() {
         }
 
         elements.historyList.innerHTML = filtered.map(s => `
-            <div class="glass-card p-4 rounded-xl border border-white/5 hover:border-violet-500/20 transition-all">
+            <div onclick="openSessionById('${s.id}')" class="glass-card p-4 rounded-xl border border-white/5 hover:border-emerald-500/30 hover:bg-white/5 transition-all cursor-pointer group relative">
+                <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all text-[8px] tracking-widest bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-full border border-emerald-500/20 uppercase font-black">
+                    Abrir Registro
+                </div>
                 <div class="flex justify-between items-center mb-2">
                     <span class="text-[9px] font-black text-violet-400 uppercase">${safeString(s.name)}</span>
                     <span class="text-[8px] text-slate-500">${s.date}</span>
                 </div>
                 <p class="text-[10px] text-slate-300 line-clamp-2 mb-3">${safeString(s.summary)}</p>
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between" onclick="event.stopPropagation()">
                     <div class="flex gap-4">
                         <button onclick="copyNoteById('${s.id}')" class="text-[9px] font-black text-slate-500 hover:text-white uppercase transition-all">Copiar</button>
                         <button onclick="downloadRepoAudio(${s.id})" class="text-[9px] font-black text-blue-400 hover:text-white uppercase transition-all">Audio</button>
@@ -558,6 +564,54 @@ async function updateStorageMeter() {
         }
     }
 }
+
+window.openSessionById = async (id) => {
+    try {
+        const tx = db.transaction('sessions', 'readonly');
+        const s = await new Promise((r, reject) => {
+            const req = tx.objectStore('sessions').get(parseInt(id));
+            req.onsuccess = e => r(e.target.result);
+            req.onerror = e => reject(e.target.error);
+        });
+
+        if (!s) return;
+
+        // Populate top GUI
+        elements.sessionName.value = s.name || '';
+        elements.aiTranscript.innerText = s.transcript || 'Sin transcripción.';
+
+        // Build summary correctly depending on object type or single string
+        if (s.summary) {
+            let parsedSum = "";
+            let summaryTextLines = typeof s.summary === 'string' ? s.summary.split('\n') : [s.summary];
+            parsedSum = summaryTextLines.map(p => `<p class="mb-3">${p}</p>`).join('');
+            elements.aiSummary.innerHTML = parsedSum;
+        } else {
+            elements.aiSummary.innerHTML = '<p class="text-slate-500">Resumen perdido.</p>';
+        }
+
+        // Restore complex datasets (may be null/undefined on older pre-v16.3 records)
+        currentSlides = s.slides || [];
+        currentMindmapCode = s.mindmap || "";
+
+        if (currentMindmapCode) document.getElementById('mindmapToggle').classList.remove('hidden');
+        else document.getElementById('mindmapToggle').classList.add('hidden');
+
+        if (s.infografia) renderInfographic(s.infografia);
+        else {
+            const c = document.getElementById('infographicContainer');
+            if (c) c.classList.add('hidden');
+        }
+
+        // Send UI feedback
+        elements.status.innerText = "Repositorio Cargado.";
+        elements.progressBar.style.width = '100%';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    } catch (err) {
+        alert("Fallo al abrir archivo de bóveda: " + err.message);
+    }
+};
 
 window.copyNoteById = async (id) => {
     const tx = db.transaction('sessions', 'readonly');
