@@ -189,10 +189,10 @@ async function analyzeSession() {
     }
 
     try {
-        updateProgress(40, "Transcribiendo con Deepgram...");
-        const dgRes = await fetch(`https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&language=es`, {
+        updateProgress(40, "Transcribiendo con Deepgram (Multidioma)...");
+        const dgRes = await fetch(`https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&detect_language=true&utterances=true`, {
             method: 'POST',
-            headers: { 'Authorization': `Token ${dgKey}`, 'Content-Type': audioBlob.type },
+            headers: { 'Authorization': `Token ${dgKey}`, 'Content-Type': 'audio/webm' },
             body: audioBlob
         });
         if (dgRes.ok) {
@@ -225,13 +225,14 @@ async function analyzeSession() {
                         messages: [
                             {
                                 role: "system",
-                                content: `Eres un analista experto. GENERAR RESPUESTA EN JSON PURO.
+                                content: `Eres un analista experto bilingüe. Si la transcripción contiene partes en inglés, TRADÚCELAS al español en el resumen. 
+                                GENERAR RESPUESTA EN JSON PURO (No markdown, no texto extra).
                                 {
-                                  "titulo": "Título corto",
-                                  "resumen": "Resumen ejecutivo en Español con Idea Central, Puntos Clave y Tareas.",
-                                  "mindmap": "Código Mermaid de tipo mindmap.",
+                                  "titulo": "Título de la sesión",
+                                  "resumen": "Resumen ejecutivo detallado SIEMPRE EN ESPAÑOL. Si el audio original fue en inglés, traduce los puntos clave aquí.",
+                                  "mindmap": "Código Mermaid de tipo mindmap (en español).",
                                   "slides": [{"title":"Título", "content":"Contenido"}],
-                                  "infografia": {"sentimiento": "Positivo", "relevancia": "95", "palabras_clave": ["IA", "Automatización"]}
+                                  "infografia": {"sentimiento": "Positivo/Negativo/Neutral", "relevancia": "0-100", "palabras_clave": ["Keyword1", "Keyword2"]}
                                 }`
                             },
                             { role: "user", content: transcriptionText }
