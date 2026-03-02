@@ -603,7 +603,8 @@ window.openSessionById = async (id) => {
             if (c) c.classList.add('hidden');
         }
 
-        // Send UI feedback and scroll
+        // Send UI feedback, ensure resultArea is visible, and scroll
+        elements.resultArea.classList.remove('hidden');
         elements.status.innerText = "Repositorio Cargado En Panel Superior";
         elements.progressBar.style.width = '100%';
 
