@@ -428,7 +428,7 @@ function updateProgress(val, msg) {
 async function renderHistory() {
     const sessions = await getHistoryFromRepo();
     const query = (elements.searchInput.value || '').toLowerCase();
-    const project = elements.projectFilter.value || 'all';
+    const currentSelectValue = elements.projectFilter.value;
 
     // Bullet-proof string extraction for legacy objects or undefined data
     const safeString = (val) => {
@@ -439,25 +439,34 @@ async function renderHistory() {
 
     const uniqueProjects = [...new Set(sessions.map(s => safeString(s.name)))].filter(x => x);
 
-    // Only rebuild dropdown if we need to
-    const currentOptionsCount = elements.projectFilter.options.length - 1; // excluding 'all'
-    if (currentOptionsCount !== uniqueProjects.length) {
-        elements.projectFilter.innerHTML = '<option value="all">TODOS</option>' +
-            uniqueProjects.map(p => {
-                const safeP = p.replace(/"/g, '&quot;');
-                return `<option value="${safeP}">${p.toUpperCase()}</option>`;
-            }).join('');
+    // Rebuild unconditionally using URI encoding to completely bypass HTML attribute character normalization
+    elements.projectFilter.innerHTML = '<option value="all">TODOS</option>' +
+        uniqueProjects.map(p => {
+            return `<option value="${encodeURIComponent(p)}">${p.replace(/</g, '&lt;').replace(/>/g, '&gt;').toUpperCase()}</option>`;
+        }).join('');
 
-        // Restore selection safely
-        if (project && (project === 'all' || uniqueProjects.includes(project))) {
-            elements.projectFilter.value = project;
-        } else {
+    // Safely restore selection by checking both encoded and raw states
+    if (currentSelectValue && currentSelectValue !== 'all') {
+        try {
+            const decoded = decodeURIComponent(currentSelectValue);
+            if (uniqueProjects.includes(decoded)) {
+                elements.projectFilter.value = currentSelectValue;
+            } else if (uniqueProjects.includes(currentSelectValue)) {
+                elements.projectFilter.value = encodeURIComponent(currentSelectValue);
+            } else {
+                elements.projectFilter.value = 'all';
+            }
+        } catch (e) {
             elements.projectFilter.value = 'all';
         }
+    } else {
+        elements.projectFilter.value = 'all';
     }
 
-    // Force re-read the value in case the DOM rejected our fallback
-    const activeProject = elements.projectFilter.value || 'all';
+    // Force re-read the active project, cleanly decoding back to exact memory string format
+    const activeProject = elements.projectFilter.value === 'all'
+        ? 'all'
+        : decodeURIComponent(elements.projectFilter.value);
 
     const filtered = sessions.filter(s => {
         const textStr = safeString(s.summary) + " " + safeString(s.transcript) + " " + safeString(s.name);
