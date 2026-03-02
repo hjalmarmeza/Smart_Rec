@@ -230,8 +230,13 @@ async function analyzeSession() {
 
                 if (chatRes.ok) {
                     const rawData = await chatRes.json();
-                    chatData = JSON.parse(rawData.choices[0].message.content);
-                    if (chatData.resumen) break;
+                    const content = rawData.choices[0].message.content;
+
+                    // Robust JSON Extract
+                    const jsonMatch = content.match(/\{[\s\S]*\}/);
+                    chatData = JSON.parse(jsonMatch ? jsonMatch[0] : content);
+
+                    if (chatData && chatData.resumen) break;
                 } else {
                     const errRes = await chatRes.json().catch(() => ({}));
                     chatError = errRes.message || chatRes.status;
@@ -245,7 +250,15 @@ async function analyzeSession() {
         const { titulo, resumen, mindmap, slides, infografia } = chatData;
 
         if (titulo) elements.sessionName.value = titulo;
-        elements.aiSummary.innerText = resumen || "Sin resumen.";
+
+        // Formatear Resumen (Line breaks to paragraphs)
+        const formattedSummary = (resumen || "Sin resumen.")
+            .split('\n')
+            .filter(p => p.trim())
+            .map(p => `<p class="mb-3">${p.trim()}</p>`)
+            .join('');
+
+        elements.aiSummary.innerHTML = formattedSummary;
 
         // Mindmap (On-demand)
         if (mindmap) {
