@@ -132,16 +132,16 @@ async function startFocus() {
             ? await navigator.mediaDevices.getUserMedia({ audio: true })
             : await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
 
-        // High-Fidelity Recording Setup (128kbps Opus)
+        // Ultra-Compressed Recording Setup (16kbps Opus) - Perfect for Voice & AI Transcripts
         const options = {
-            audioBitsPerSecond: 128000,
+            audioBitsPerSecond: 16000,
             mimeType: 'audio/webm;codecs=opus'
         };
 
         try {
             mediaRecorder = new MediaRecorder(stream, options);
         } catch (e) {
-            console.warn("High fidelity not supported, falling back to default.");
+            console.warn("Opus compression not supported, falling back to default.", e);
             mediaRecorder = new MediaRecorder(stream);
         }
 
