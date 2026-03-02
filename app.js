@@ -21,7 +21,15 @@ mermaid.initialize({
     startOnLoad: false,
     theme: 'dark',
     securityLevel: 'loose',
-    fontFamily: 'Outfit, sans-serif'
+    fontFamily: 'Outfit, sans-serif',
+    themeVariables: {
+        primaryColor: '#8B5CF6',
+        primaryTextColor: '#fff',
+        primaryBorderColor: '#8B5CF6',
+        lineColor: '#475569',
+        secondaryColor: '#3B82F6',
+        tertiaryColor: '#1F2937'
+    }
 });
 
 function initDB() {
@@ -189,15 +197,22 @@ async function analyzeSession() {
     }
 
     try {
-        updateProgress(40, "Transcribiendo con Deepgram (Multidioma)...");
-        const dgRes = await fetch(`https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&detect_language=true&utterances=true`, {
+        updateProgress(40, "Transcribiendo (Nova-2 + Diarización)...");
+        const dgRes = await fetch(`https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&diarize=true&detect_language=true&utterances=true&punctuate=true`, {
             method: 'POST',
             headers: { 'Authorization': `Token ${dgKey}`, 'Content-Type': 'audio/webm' },
             body: audioBlob
         });
         if (dgRes.ok) {
             const dgData = await dgRes.json();
-            transcriptionText = dgData.results.channels[0].alternatives[0].transcript;
+
+            // Reconstruct transcription with Speaker Labels
+            const utterances = dgData.results.utterances;
+            if (utterances && utterances.length > 0) {
+                transcriptionText = utterances.map(u => `Sujeto ${u.speaker}: ${u.transcript}`).join('\n\n');
+            } else {
+                transcriptionText = dgData.results.channels[0].alternatives[0].transcript;
+            }
         } else {
             throw new Error("Fallo en Deepgram.");
         }
@@ -225,14 +240,17 @@ async function analyzeSession() {
                         messages: [
                             {
                                 role: "system",
-                                content: `Eres un analista experto bilingüe. Si la transcripción contiene partes en inglés, TRADÚCELAS al español en el resumen. 
-                                GENERAR RESPUESTA EN JSON PURO (No markdown, no texto extra).
+                                content: `Eres un analista de élite para directivos de alto impacto. 
+                                OBJETIVO: Destilar conocimiento puro. NO rellenos.
+                                SI HAY VARIOS SUJETOS: Identifica los acuerdos y desacuerdos entre ellos.
+                                
+                                GENERAR RESPUESTA EN JSON PURO:
                                 {
-                                  "titulo": "Título de la sesión",
-                                  "resumen": "Resumen ejecutivo detallado SIEMPRE EN ESPAÑOL. Si el audio original fue en inglés, traduce los puntos clave aquí.",
-                                  "mindmap": "Código Mermaid de tipo mindmap (en español).",
-                                  "slides": [{"title":"Título", "content":"Contenido"}],
-                                  "infografia": {"sentimiento": "Positivo/Negativo/Neutral", "relevancia": "0-100", "palabras_clave": ["Keyword1", "Keyword2"]}
+                                  "titulo": "Título Ejecutivo Potente",
+                                  "resumen": "Resumen de alto nivel con: 1. Contexto Maestro. 2. Puntos Estratégicos. 3. Compromisos y Dueños de acción.",
+                                  "mindmap": "Código Mermaid de tipo mindmap (Usa colores y jerarquía clara).",
+                                  "slides": [{"title":"Master Slide", "content":"Executive Insight"}],
+                                  "infografia": {"sentimiento": "Optimista/Crítico", "relevancia": "Score 0-100", "palabras_clave": ["Insight1", "Insight2"]}
                                 }`
                             },
                             { role: "user", content: transcriptionText }

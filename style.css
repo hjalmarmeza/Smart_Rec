@@ -1,61 +1,71 @@
 :root {
-    --bg-obsidian: #040812;
-    --accent-violet: #8B5CF6;
-    --accent-blue: #3B82F6;
-    --glass-white: rgba(255, 255, 255, 0.05);
-    --glass-border: rgba(255, 255, 255, 0.1);
+    --bg-obsidian: #020617;
+    --accent-violet: #6366f1;
+    --accent-blue: #0ea5e9;
+    --glass-white: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
 }
 
 body {
     font-family: 'Outfit', sans-serif;
     background-color: var(--bg-obsidian);
-    color: #E2E8F0;
+    color: var(--text-primary);
     overflow-x: hidden;
     min-height: 100vh;
-    transition: background-color 0.8s ease;
     margin: 0;
+    letter-spacing: -0.01em;
 }
 
 .glass {
     background: var(--glass-white);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--glass-border);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .glass-card {
-    background: rgba(13, 17, 34, 0.7);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s ease;
+}
+
+.glass-card:hover {
+    border-color: rgba(99, 102, 241, 0.3);
 }
 
 .record-btn-gradient {
-    background: linear-gradient(135deg, var(--accent-violet), var(--accent-blue));
-    box-shadow: 0 0 30px rgba(139, 92, 246, 0.4);
+    background: linear-gradient(135deg, #6366f1, #0ea5e9);
+    box-shadow: 0 0 40px rgba(99, 102, 241, 0.4);
     border: none;
     cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.record-btn-active {
-    animation: pulse-ring 1.5s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+.record-btn-gradient:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 60px rgba(99, 102, 241, 0.6);
 }
 
 @keyframes pulse-ring {
     0% {
         transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7);
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
     }
 
     70% {
-        transform: scale(1);
-        box-shadow: 0 0 0 15px rgba(139, 92, 246, 0);
+        transform: scale(1.05);
+        box-shadow: 0 0 0 20px rgba(99, 102, 241, 0);
     }
 
     100% {
         transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
     }
 }
 
@@ -66,18 +76,20 @@ body {
     width: 100%;
     height: 100%;
     z-index: -1;
-    background: radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 40%);
+    background:
+        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.1) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(14, 165, 233, 0.1) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 1) 0%, #020617 100%);
 }
 
 .soundwave-bar {
-    width: 4px;
-    background: linear-gradient(to top, var(--accent-blue), var(--accent-violet));
-    border-radius: 4px;
-    transition: height 0.1s ease;
+    width: 6px;
+    background: linear-gradient(to top, #0ea5e9, #6366f1);
+    border-radius: 99px;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
 }
 
-/* SMART POWER SAVING MODE (Blackout for OLED) */
+/* SMART POWER SAVING MODE */
 body.power-saving {
     background-color: #000000 !important;
 }
