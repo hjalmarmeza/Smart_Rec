@@ -306,7 +306,7 @@ async function analyzeSession() {
                                 {
                                   "titulo": "Título Ejecutivo Potente",
                                   "resumen": "Genera un texto extenso, organizado en párrafos ricos en detalle. Debes incluir: 1. Contexto Maestro (¿Qué está pasando exactamente y por qué?). 2. Debate y Argumentos (Si hay varios sujetos, detalla meticulosamente los acuerdos, desacuerdos, y posturas de cada uno con ejemplos de lo que dijeron). 3. Datos Duros (Fechas, cifras, nombres, lugares y métricas mencionadas). 4. Próximos Pasos (Resoluciones detalladas, responsables y fechas límite). Evita resúmenes telegráficos; usa una narrativa analítica completa y profesional que exponga todo el peso de la reunión o audio.",
-                                  "mindmap": "Código Mermaid de tipo mindmap (Usa colores y jerarquía clara). REGLA CRÍTICA: JAMÁS uses términos como 'Sujeto 0' o 'Sujeto 1'. Deduce su profesión, rol o pon un nombre genérico (Entrevistador, Cliente, Experto).",
+                                  "mindmap": "ESTRICTO: Código Mermaid EXCLUSIVO de tipo 'mindmap'. Usa indentation (tabulaciones/espacios) para jerarquía. REGLA FATAL: PROHIBIDO USAR FLECHAS (-->), CORCHETES ([ ]) O PARÉNTESIS. EJEMPLO PERFECTO: \n mindmap \n  Raiz \n    Idea 1 \n      SubIdea \n    Idea 2. Deduce los roles de hablantes (jamás 'Sujeto 0'). SÓLO TEXTO PLANO indented.",
                                   "slides": [
                                     {
                                       "title": "Título Slide 1", 
@@ -798,6 +798,11 @@ window.openMindmap = async () => {
     try {
         // Strip markdown backticks in case the AI included them
         let code = currentMindmapCode.replace(/```mermaid/gi, '').replace(/```/g, '').trim();
+
+        // Scrub illegal characters that crash the Mermaid.js 'mindmap' parser
+        code = code.replace(/-->/g, '');
+        code = code.replace(/[\[\]]/g, '');
+        code = code.replace(/\(/g, '').replace(/\)/g, ''); // Mermaid mindmaps hate un-escaped parenthesis
 
         // Ensure the code has the "mindmap" header if the AI forgot it
         if (!code.toLowerCase().startsWith('mindmap')) {
