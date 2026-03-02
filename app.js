@@ -33,7 +33,7 @@ mermaid.initialize({
 });
 
 function initDB() {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         request.onupgradeneeded = (e) => {
             const db = e.target.result;
@@ -45,15 +45,18 @@ function initDB() {
             db = e.target.result;
             resolve(db);
         };
+        request.onerror = (e) => reject(e.target.error);
+        request.onblocked = () => reject(new Error("Database blocked"));
     });
 }
 
 async function saveSessionToRepo(sessionData) {
     const tx = db.transaction('sessions', 'readwrite');
     const store = tx.objectStore('sessions');
-    return new Promise(r => {
-        const req = store.put(sessionData);
-        req.onsuccess = () => r(req.result);
+    return new Promise((resolve, reject) => {
+        const req = store.put(sessionData); // put works as insert AND update depending on primary key
+        req.onsuccess = () => resolve(req.result); // Returns the record ID
+        req.onerror = () => reject(req.error);
     });
 }
 
@@ -263,6 +266,22 @@ async function analyzeSession() {
 
     elements.aiTranscript.innerText = transcriptionText;
 
+    // --- FAIL-SAFE SAVE (Before AI processing) ---
+    // If user's API fails or freezes, the transcription audio won't be lost.
+    let currentDbId = null;
+    try {
+        currentDbId = await saveSessionToRepo({
+            name: 'Auditoría en Progreso...',
+            date: new Date().toLocaleString(),
+            summary: "Generando resumen ejecutivo avanzado...",
+            transcript: transcriptionText,
+            audioBlob: audioBlob
+        });
+        renderHistory(); // Show the ghost record
+    } catch (dbErr) {
+        console.warn("No se pudo pre-guardar la sesión:", dbErr);
+    }
+
     try {
         const chatModels = ["deepseek-ai/DeepSeek-V3", "Qwen/Qwen2.5-72B-Instruct", "Qwen/Qwen2.5-7B-Instruct"];
         let chatData = null;
@@ -369,14 +388,20 @@ async function analyzeSession() {
 
         updateProgress(100, "¡Listo!");
 
-        // Store Session
-        await saveSessionToRepo({
-            name: elements.sessionName.value || 'Sesión sin nombre',
+        // Update Final Session (Merge into existing record if exists, or append new)
+        const finalSessionData = {
+            name: elements.sessionName.value || 'Sesión Directiva',
             date: new Date().toLocaleString(),
             summary: summaryForStorage,
             transcript: transcriptionText,
             audioBlob: audioBlob
-        });
+        };
+
+        if (currentDbId !== null) {
+            finalSessionData.id = currentDbId; // Put overwrites standard key Path
+        }
+
+        await saveSessionToRepo(finalSessionData);
 
         renderHistory();
 
