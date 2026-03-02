@@ -426,82 +426,95 @@ function updateProgress(val, msg) {
 }
 
 async function renderHistory() {
-    const sessions = await getHistoryFromRepo();
-    const query = (elements.searchInput.value || '').toLowerCase();
-    const currentSelectValue = elements.projectFilter.value;
+    try {
+        const sessions = await getHistoryFromRepo();
+        const query = (elements.searchInput.value || '').trim().toLowerCase();
+        let currentSelectValue = elements.projectFilter.value;
 
-    // Bullet-proof string extraction for legacy objects or undefined data
-    const safeString = (val) => {
-        if (!val) return "";
-        if (typeof val === 'object') return JSON.stringify(val);
-        return String(val);
-    };
+        // Ultimate safety string conversion
+        const safeString = (val) => {
+            if (val === null || val === undefined) return "";
+            if (typeof val === 'object') return JSON.stringify(val);
+            return String(val);
+        };
 
-    const uniqueProjects = [...new Set(sessions.map(s => safeString(s.name)))].filter(x => x);
+        // Bulletproof encoding for DOM injection (supports Ñ, Ó, Emojis, any length)
+        const encodeDBString = (str) => btoa(encodeURIComponent(str));
+        const decodeDBString = (str) => decodeURIComponent(atob(str));
 
-    // Memory caching to prevent DOM dropdown wipe-outs and URIError crashes
-    if (!window._cachedProjects || window._cachedProjects.join('|') !== uniqueProjects.join('|')) {
-        let previousActiveProject = 'all';
-        if (window._cachedProjects && elements.projectFilter.value !== 'all') {
-            const oldIndex = parseInt(elements.projectFilter.value);
-            if (!isNaN(oldIndex) && window._cachedProjects[oldIndex]) {
-                previousActiveProject = window._cachedProjects[oldIndex];
+        // Get unique project names ensuring no blank or corrupt data
+        const uniqueProjects = [...new Set(sessions.map(s => safeString(s.name)))].filter(x => x.trim() !== "");
+
+        // 1. Rebuild DOM options tracking previous encoded value
+        let optionsHTML = '<option value="all">TODOS</option>';
+        uniqueProjects.forEach(p => {
+            const safeB64 = encodeDBString(p);
+            const displayP = p.replace(/</g, '&lt;').replace(/>/g, '&gt;').toUpperCase();
+            optionsHTML += `<option value="${safeB64}">${displayP}</option>`;
+        });
+
+        // 2. Prevent DOM tearing: only update if options mathematically changed
+        if (elements.projectFilter.innerHTML.length !== optionsHTML.length) {
+            elements.projectFilter.innerHTML = optionsHTML;
+            // Best effort to restore previous selection
+            if (currentSelectValue && currentSelectValue !== 'all') {
+                try {
+                    // Test if it's a valid b64 from our logic
+                    decodeDBString(currentSelectValue);
+                    elements.projectFilter.value = currentSelectValue;
+                } catch (e) {
+                    elements.projectFilter.value = 'all';
+                }
             }
         }
 
-        window._cachedProjects = uniqueProjects;
+        // 3. Read exact active filter state purely from base64
+        const activeDomValue = elements.projectFilter.value;
+        const activeProjectDecode = activeDomValue === 'all' ? 'all' : decodeDBString(activeDomValue);
 
-        // Rebuild only when actual projects change, use numeric indices avoiding any special character breaks
-        elements.projectFilter.innerHTML = '<option value="all">TODOS</option>' +
-            uniqueProjects.map((p, index) => {
-                return `<option value="${index}">${p.replace(/</g, '&lt;').replace(/>/g, '&gt;').toUpperCase()}</option>`;
-            }).join('');
+        // 4. Run Filter Core
+        const filtered = sessions.filter(s => {
+            const nameStr = safeString(s.name);
+            const sumStr = safeString(s.summary);
+            const transStr = safeString(s.transcript);
 
-        // Restore active selection gracefully
-        if (previousActiveProject !== 'all') {
-            const newIndex = uniqueProjects.indexOf(previousActiveProject);
-            elements.projectFilter.value = newIndex !== -1 ? newIndex.toString() : 'all';
-        } else {
-            elements.projectFilter.value = 'all';
+            const textBase = (sumStr + " " + transStr + " " + nameStr).toLowerCase();
+            const matchesQuery = !query || textBase.includes(query);
+            const matchesProject = (activeProjectDecode === 'all' || nameStr === activeProjectDecode);
+
+            return matchesQuery && matchesProject;
+        });
+
+        // 5. Render
+        if (filtered.length === 0) {
+            elements.historyList.innerHTML = '<p class="text-xs text-slate-600 text-center uppercase tracking-widest mt-10">Repo vacío o Nada Coincide con el Filtro Seleccionado</p>';
+            return;
         }
-    }
 
-    const val = elements.projectFilter.value;
-    const activeProject = val === 'all' ? 'all' : (window._cachedProjects[parseInt(val)] || 'all');
-
-    const filtered = sessions.filter(s => {
-        const textStr = safeString(s.summary) + " " + safeString(s.transcript) + " " + safeString(s.name);
-        const text = textStr.toLowerCase();
-
-        const matchesQuery = !query || text.includes(query);
-        const matchesProject = (activeProject === 'all' || safeString(s.name) === activeProject);
-
-        return matchesQuery && matchesProject;
-    });
-
-    if (filtered.length === 0) {
-        elements.historyList.innerHTML = '<p class="text-xs text-slate-600 text-center">Repo vacío</p>';
-        return;
-    }
-
-    elements.historyList.innerHTML = filtered.map(s => `
-        <div class="glass-card p-4 rounded-xl border border-white/5 hover:border-violet-500/20 transition-all">
-            <div class="flex justify-between items-center mb-2">
-                <span class="text-[9px] font-black text-violet-400 uppercase">${s.name}</span>
-                <span class="text-[8px] text-slate-500">${s.date}</span>
-            </div>
-            <p class="text-[10px] text-slate-300 line-clamp-2 mb-3">${s.summary}</p>
-            <div class="flex items-center justify-between">
-                <div class="flex gap-4">
-                    <button onclick="copyNoteById('${s.id}')" class="text-[9px] font-black text-slate-500 hover:text-white uppercase transition-all">Copiar</button>
-                    <button onclick="downloadRepoAudio(${s.id})" class="text-[9px] font-black text-blue-400 hover:text-white uppercase transition-all">Audio</button>
+        elements.historyList.innerHTML = filtered.map(s => `
+            <div class="glass-card p-4 rounded-xl border border-white/5 hover:border-violet-500/20 transition-all">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[9px] font-black text-violet-400 uppercase">${safeString(s.name)}</span>
+                    <span class="text-[8px] text-slate-500">${s.date}</span>
                 </div>
-                <div onclick="deleteSessionById(${s.id}, event)" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-red-400 transition-all cursor-pointer" title="Eliminar definitivamente">
-                    <span class="material-symbols-rounded text-sm pointer-events-none">delete</span>
+                <p class="text-[10px] text-slate-300 line-clamp-2 mb-3">${safeString(s.summary)}</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex gap-4">
+                        <button onclick="copyNoteById('${s.id}')" class="text-[9px] font-black text-slate-500 hover:text-white uppercase transition-all">Copiar</button>
+                        <button onclick="downloadRepoAudio(${s.id})" class="text-[9px] font-black text-blue-400 hover:text-white uppercase transition-all">Audio</button>
+                    </div>
+                    <div onclick="deleteSessionById(${s.id}, event)" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-red-400 transition-all cursor-pointer" title="Eliminar definitivamente">
+                        <span class="material-symbols-rounded text-sm pointer-events-none">delete</span>
+                    </div>
                 </div>
             </div>
-        </div>
-    `).join('');
+        `).join('');
+
+    } catch (criticalError) {
+        elements.historyList.innerHTML = `<div class="p-6 bg-red-900/30 border border-red-500/50 rounded-xl text-xs text-red-200">
+            <b>Error Fatal Renderizando:</b><br/>${criticalError.message}<br/>${criticalError.stack}
+        </div>`;
+    }
 }
 
 window.copyNoteById = async (id) => {
