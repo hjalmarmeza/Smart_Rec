@@ -132,16 +132,9 @@ async function startFocus() {
         mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
 
-        mediaRecorder.ondataavailable = async (e) => {
+        mediaRecorder.ondataavailable = (e) => {
             if (e.data.size > 0) {
                 audioChunks.push(e.data);
-
-                // Real-time draft saving (Blob to Base64/URL for safety)
-                const fullBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const reader = new FileReader();
-                reader.onloadend = () => localStorage.setItem('sr_draft_audio', reader.result);
-                reader.readAsDataURL(fullBlob);
-
                 const size = audioChunks.reduce((acc, c) => acc + c.size, 0);
                 const mb = (size / (1024 * 1024)).toFixed(1);
                 elements.currentSizeLabel.innerText = `${mb} MB`;
@@ -160,16 +153,28 @@ async function startFocus() {
 }
 
 function stopFocus() {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
-        stopTimer();
-        uiFinished();
-    }
+    return new Promise((resolve) => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.onstop = () => {
+                stopTimer();
+                uiFinished();
+                resolve();
+            };
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        } else {
+            resolve();
+        }
+    });
 }
 
 // --- Analysis & Progress ---
 async function analyzeSession() {
+    // Force stop if still recording
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        await stopFocus();
+    }
+
     const apiKey = localStorage.getItem('sf_api_key_v2');
     const baseUrl = localStorage.getItem('sf_base_url') || 'https://api.siliconflow.com/v1';
 
@@ -177,10 +182,10 @@ async function analyzeSession() {
 
     elements.resultArea.classList.remove('hidden');
     elements.progressContainer.classList.remove('hidden');
-    updateProgress(10, "Iniciando análisis...");
+    updateProgress(10, "Iniciando análisis profesional...");
 
     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-    console.log("Audio Blob Size for Transcription:", audioBlob.size, "bytes");
+    console.log("Audio Final Blob Size:", audioBlob.size, "bytes");
 
     let transcriptionText = "";
 
