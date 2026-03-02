@@ -441,16 +441,24 @@ window.copyNoteById = async (id) => {
     navigator.clipboard.writeText(text);
     alert("Copiado al portapapeles.");
 };
-
 window.deleteSessionById = async (id, event) => {
     if (event) {
         event.preventDefault();
         event.stopPropagation();
-        if (event.currentTarget) event.currentTarget.blur();
     }
-    const scrollPos = window.scrollY;
 
     if (!confirm("¿Estás seguro de eliminar esta sesión para siempre?")) return;
+
+    // Encontrar la tarjeta que recibió el clic para hacer una transición suave
+    if (event && event.target) {
+        const card = event.target.closest('.glass-card');
+        if (card) {
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.9)';
+            await new Promise(res => setTimeout(res, 200)); // Esperar la animación css
+            card.style.display = 'none'; // Ocultar antes de reescribir
+        }
+    }
 
     const tx = db.transaction('sessions', 'readwrite');
     const store = tx.objectStore('sessions');
@@ -459,12 +467,24 @@ window.deleteSessionById = async (id, event) => {
         req.onsuccess = () => r();
     });
 
+    // Prevenir el salto repentino bloqueando la altura del contendor padre temporalmente
+    const hList = document.getElementById('historyList');
+    const currentScroll = window.scrollY;
+
+    if (hList) {
+        hList.style.minHeight = hList.offsetHeight + 'px';
+    }
+
     await renderHistory();
 
-    // Prevent browser focus jump when element is destroyed
-    setTimeout(() => {
-        window.scrollTo(0, scrollPos);
-    }, 10);
+    // Mantener la posición firme
+    window.scrollTo(0, currentScroll);
+
+    if (hList) {
+        setTimeout(() => {
+            hList.style.minHeight = '';
+        }, 100);
+    }
 };
 
 window.downloadRepoAudio = async (id) => {
