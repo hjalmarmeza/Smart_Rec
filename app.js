@@ -10,6 +10,30 @@ let currentSlides = [];
 let activeSlideIndex = 0;
 let panZoomInstance = null;
 let currentMindmapCode = "";
+let currentSessionType = 'reunion'; // Default: reunión
+
+// ===== SESSION TYPE SELECTOR =====
+window.setSessionType = (type, btn) => {
+    currentSessionType = type;
+    document.querySelectorAll('.session-type-btn').forEach(b => {
+        b.classList.remove('border-violet-500/50', 'bg-violet-500/20', 'text-violet-400');
+        b.classList.add('border-white/10', 'text-slate-500');
+    });
+    btn.classList.remove('border-white/10', 'text-slate-500');
+    btn.classList.add('border-violet-500/50', 'bg-violet-500/20', 'text-violet-400');
+};
+
+function getSessionTypePrompt(type) {
+    const prompts = {
+        reunion: `\nAdemás del resumen, incluye estas secciones con estas etiquetas exactas:\n[ACTION_ITEMS]\n- Lista numerada de tareas y compromisos mencionados. Máximo 10.\n[/ACTION_ITEMS]\n[DECISIONES]\n- Decisiones concretas tomadas. Solo frases de decisión real.\n[/DECISIONES]`,
+        entrevista: `\nAdemás del resumen, incluye:\n[ACTION_ITEMS]\n- Puntos clave del entrevistado, compromisos o próximos pasos.\n[/ACTION_ITEMS]\n[DECISIONES]\n- Conclusiones alcanzadas.\n[/DECISIONES]`,
+        clase: `\nEl resumen debe enfocarse en conceptos educativos y definiciones. Al final agrega "Conceptos Clave:" con los 5-8 términos más importantes.`,
+        dictado: `\nProduce únicamente el texto dictado bien estructurado y formateado. Sin análisis adicional.`,
+        personal: `\nOrganiza las ideas mencionadas de forma coherente como notas personales estructuradas.`
+    };
+    return prompts[type] || prompts['reunion'];
+}
+
 
 // --- Database Logic (IndexedDB for "Digital Repositories") ---
 const DB_NAME = 'SmartRecorderRepo';
@@ -304,21 +328,20 @@ async function analyzeSession() {
                             {
                                 role: "system",
                                 content: `Eres un analista de élite para directivos de alto impacto. 
+                                TIPO DE SESIÓN: ${currentSessionType.toUpperCase()}.
                                 OBJETIVO: Destilar conocimiento profundo y exhaustivo de la transcripción.
                                 Misión: El usuario necesita un resumen ejecutivo ALTAMENTE DETALLADO. No escatimes en información, elabora conclusiones profundas.
+                                ${getSessionTypePrompt(currentSessionType)}
                                 
-                                GENERAR RESPUESTA EN JSON PURO:
+                                GENERAR RESPUESTA EN JSON PURO (sin markdown):
                                 {
                                   "titulo": "Título Ejecutivo Potente",
-                                  "resumen": "Genera un texto extenso, organizado en párrafos ricos en detalle. Debes incluir: 1. Contexto Maestro (¿Qué está pasando exactamente y por qué?). 2. Debate y Argumentos (Si hay varios sujetos, detalla meticulosamente los acuerdos, desacuerdos, y posturas de cada uno con ejemplos de lo que dijeron). 3. Datos Duros (Fechas, cifras, nombres, lugares y métricas mencionadas). 4. Próximos Pasos (Resoluciones detalladas, responsables y fechas límite). Evita resúmenes telegráficos; usa una narrativa analítica completa y profesional que exponga todo el peso de la reunión o audio.",
-                                  "mindmap": "ESTRICTO: Código Mermaid EXCLUSIVO de tipo 'mindmap'. Usa indentation (tabulaciones/espacios) para jerarquía. REGLA FATAL: PROHIBIDO USAR FLECHAS (-->), CORCHETES ([ ]) O PARÉNTESIS. EJEMPLO PERFECTO: \n mindmap \n  Raiz \n    Idea 1 \n      SubIdea \n    Idea 2. Deduce los roles de hablantes (jamás 'Sujeto 0'). SÓLO TEXTO PLANO indented.",
-                                  "slides": [
-                                    {
-                                      "title": "Título Slide 1", 
-                                      "content": "Párrafos súper extensos y detallados. Incluye tablas Markdown, métricas clave, o mini-gráficos ASCII (e.g. [██████░░ 80%]) y comentarios estratégicos profundos. MÍNIMO 5-8 slides con mucho texto, datos estructurados y valor informativo. NADA de slides cortas de dos líneas."
-                                    }
-                                  ],
-                                  "infografia": {"sentimiento": "Optimista/Crítico", "relevancia": "Score 0-100", "palabras_clave": ["Insight1", "Insight2"]}
+                                  "resumen": "Texto extenso en párrafos ricos. 1. Contexto. 2. Debate y argumentos. 3. Datos duros (fechas, cifras, nombres). 4. Próximos pasos.",
+                                  "action_items": ["Tarea 1 - Responsable", "Tarea 2"],
+                                  "decisiones": ["Decisión 1", "Decisión 2"],
+                                  "mindmap": "Código Mermaid tipo 'mindmap'. PROHIBIDO usar flechas o corchetes. Solo texto indented.",
+                                  "slides": [{"title": "Título", "content": "Contenido extenso"}],
+                                  "infografia": {"sentimiento": "Optimista/Crítico", "relevancia": "0-100", "palabras_clave": ["Insight1"]}
                                 }`
                             },
                             { role: "user", content: transcriptionText }
@@ -386,6 +409,38 @@ async function analyzeSession() {
         }
 
         elements.aiSummary.innerHTML = summaryHTML;
+
+        // Render Action Items
+        const actionItems = chatData.action_items || [];
+        const aiContainer = document.getElementById('actionItemsContainer');
+        const aiList = document.getElementById('actionItemsList');
+        if (actionItems.length > 0 && aiContainer && aiList) {
+            aiList.innerHTML = actionItems.map((item, i) =>
+                `<div class="flex items-start gap-2 p-2 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
+                    <span class="text-emerald-500 font-black text-xs mt-0.5">${i + 1}.</span>
+                    <span>${item}</span>
+                </div>`
+            ).join('');
+            aiContainer.classList.remove('hidden');
+        } else if (aiContainer) {
+            aiContainer.classList.add('hidden');
+        }
+
+        // Render Decisiones
+        const decisiones = chatData.decisiones || [];
+        const decContainer = document.getElementById('decisionesContainer');
+        const decList = document.getElementById('decisionesList');
+        if (decisiones.length > 0 && decContainer && decList) {
+            decList.innerHTML = decisiones.map(d =>
+                `<div class="flex items-start gap-2 p-2 bg-blue-500/5 rounded-xl border border-blue-500/10">
+                    <span class="material-symbols-rounded text-blue-400 text-xs mt-0.5">check_circle</span>
+                    <span>${d}</span>
+                </div>`
+            ).join('');
+            decContainer.classList.remove('hidden');
+        } else if (decContainer) {
+            decContainer.classList.add('hidden');
+        }
 
         // Mindmap (On-demand)
         if (mindmap) {
@@ -833,7 +888,65 @@ window.nextSlide = () => {
 
 window.prevSlide = () => { if (activeSlideIndex > 0) { activeSlideIndex--; renderSlide(); } };
 
+// ===== EMAIL GENERATOR =====
+window.generateEmail = async () => {
+    const apiKey = localStorage.getItem('sf_api_key_v2');
+    const baseUrl = localStorage.getItem('sf_base_url') || 'https://api.siliconflow.com/v1';
+    if (!apiKey) return alert('Configura tu API Key antes de generar el email.');
+
+    const summary = elements.aiSummary.innerText;
+    const sessionTitle = elements.sessionName.value || 'Sesión';
+    if (!summary || summary === 'Redactando...') return alert('Primero analiza una sesión.');
+
+    const emailContainer = document.getElementById('emailContainer');
+    const emailContent = document.getElementById('emailContent');
+    emailContent.innerText = '✍️ Generando email...';
+    emailContainer.classList.remove('hidden');
+
+    try {
+        const res = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'deepseek-ai/DeepSeek-V3',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `Eres un asistente de comunicación ejecutiva. Genera un email profesional y formal en español basado en el resumen de una sesión. 
+                        El email debe tener: Asunto, Saludo formal, Cuerpo con los puntos clave, Cierre profesional y firma genérica. 
+                        Responde SOLO con el texto del email, sin comentarios adicionales.`
+                    },
+                    {
+                        role: 'user',
+                        content: `Tema de la sesión: ${sessionTitle}\n\nResumen:\n${summary}`
+                    }
+                ]
+            })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            const email = data.choices[0].message.content;
+            emailContent.innerText = email;
+        } else {
+            emailContent.innerText = 'Error al generar el email. Intenta de nuevo.';
+        }
+    } catch (err) {
+        emailContent.innerText = 'Error de conexión: ' + err.message;
+    }
+};
+
+window.copyEmail = () => {
+    const emailContent = document.getElementById('emailContent');
+    if (emailContent) {
+        navigator.clipboard.writeText(emailContent.innerText)
+            .then(() => alert('Email copiado al portapapeles.'))
+            .catch(() => alert('No se pudo copiar. Selecciona el texto manualmente.'));
+    }
+};
+
 window.exportNote = async (format) => {
+
     const title = elements.sessionName.value || "Sesion";
     const date = new Date().toLocaleString();
     const sessionResumen = elements.aiSummary.innerText; // Use different local name to avoid clashes
