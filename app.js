@@ -477,13 +477,15 @@ async function renderHistory() {
 
         // 4. Run Filter Core
         const filtered = sessions.filter(s => {
-            const nameStr = safeString(s.name);
-            const sumStr = safeString(s.summary);
-            const transStr = safeString(s.transcript);
+            const nameStr = safeString(s.name || "").trim().toLowerCase();
+            const sumStr = safeString(s.summary || "").toLowerCase();
+            const transStr = safeString(s.transcript || "").toLowerCase();
 
-            const textBase = (sumStr + " " + transStr + " " + nameStr).toLowerCase();
+            const textBase = (sumStr + " " + transStr + " " + nameStr);
             const matchesQuery = !query || textBase.includes(query);
-            const matchesProject = (activeProjectDecode === 'all' || nameStr === activeProjectDecode);
+
+            const activeProjectStr = (activeProjectDecode || "").trim().toLowerCase();
+            const matchesProject = (activeProjectStr === 'all' || nameStr === activeProjectStr);
 
             return matchesQuery && matchesProject;
         });
@@ -603,18 +605,21 @@ window.openSessionById = async (id) => {
             if (c) c.classList.add('hidden');
         }
 
-        // Send UI feedback, ensure resultArea is visible, and scroll
+        // Ensure all UI components for results are visible
         elements.resultArea.classList.remove('hidden');
         elements.progressContainer.classList.remove('hidden');
         elements.status.innerText = "Repositorio Cargado En Panel Superior";
         elements.progressBar.style.width = '100%';
 
-        // Prevent confusion of "disappearing" by visually alerting them it moved up
+        // Smooth scroll and visual feedback
         setTimeout(() => {
             window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-            elements.resultArea.classList.add('ring-4', 'ring-emerald-500', 'ring-opacity-50');
-            setTimeout(() => elements.resultArea.classList.remove('ring-4', 'ring-emerald-500', 'ring-opacity-50'), 1500);
-        }, 300);
+            // Add a ring effect to highligth the loaded content
+            elements.resultArea.classList.add('ring-4', 'ring-emerald-500', 'ring-opacity-50', 'rounded-3xl');
+            setTimeout(() => {
+                elements.resultArea.classList.remove('ring-4', 'ring-emerald-500', 'ring-opacity-50');
+            }, 2000);
+        }, 100);
 
     } catch (err) {
         alert("Fallo al abrir archivo de bóveda: " + err.message);
