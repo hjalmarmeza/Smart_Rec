@@ -515,6 +515,48 @@ async function renderHistory() {
             <b>Error Fatal Renderizando:</b><br/>${criticalError.message}<br/>${criticalError.stack}
         </div>`;
     }
+
+    // After rendering history, fetch the current local browser disk space consumption
+    if (typeof updateStorageMeter === 'function') {
+        updateStorageMeter();
+    }
+}
+
+async function updateStorageMeter() {
+    if (navigator.storage && navigator.storage.estimate) {
+        try {
+            const estimate = await navigator.storage.estimate();
+            const usedMB = (estimate.usage / (1024 * 1024)).toFixed(1);
+            const totalMB = (estimate.quota / (1024 * 1024)).toFixed(1);
+            let percent = (estimate.usage / estimate.quota) * 100;
+            if (percent > 100) percent = 100;
+
+            const meter = document.getElementById('storageMeter');
+            const bar = document.getElementById('storageBar');
+            const text = document.getElementById('storageText');
+
+            if (meter && bar && text) {
+                meter.classList.remove('hidden');
+                bar.style.width = `${percent}%`;
+
+                // Color Warning Logic
+                bar.className = 'h-full transition-all rounded-full ' +
+                    (percent > 90 ? 'bg-red-500' : percent > 70 ? 'bg-amber-400' : 'bg-emerald-400');
+                text.className = 'text-[9px] font-black tracking-widest uppercase ml-2 ' +
+                    (percent > 90 ? 'text-red-500' : percent > 70 ? 'text-amber-400' : 'text-emerald-400');
+
+                let usedDisplay = `${usedMB} MB`;
+                if (usedMB >= 1024) usedDisplay = `${(usedMB / 1024).toFixed(2)} GB`;
+
+                let totalDisplay = `${totalMB} MB`;
+                if (totalMB >= 1024) totalDisplay = `${(totalMB / 1024).toFixed(0)} GB`; // Truncate cleanly for GB quota
+
+                text.innerText = `USADO: ${usedDisplay} / TOTAL: ${totalDisplay} (${percent.toFixed(1)}%)`;
+            }
+        } catch (e) {
+            console.warn("Storage API not supported or failed", e);
+        }
+    }
 }
 
 window.copyNoteById = async (id) => {

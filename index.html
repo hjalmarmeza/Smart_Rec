@@ -265,8 +265,19 @@
 
         <!-- Session History -->
         <section class="mt-20 min-h-screen pb-96">
-            <div class="flex items-center justify-between mb-8">
-                <h3 class="text-sm font-black text-white uppercase tracking-widest">Repositorios Guardados</h3>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <div class="flex flex-col">
+                    <h3 class="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
+                        Repositorios Guardados</h3>
+                    <div id="storageMeter" class="mt-2 flex items-center gap-2 hidden">
+                        <div class="h-1.5 w-32 bg-white/10 rounded-full overflow-hidden">
+                            <div id="storageBar" class="h-full bg-emerald-400 transition-all rounded-full"
+                                style="width: 0%;"></div>
+                        </div>
+                        <span id="storageText"
+                            class="text-[9px] font-black tracking-widest text-emerald-400 uppercase">Calculando...</span>
+                    </div>
+                </div>
                 <div class="flex gap-4">
                     <button onclick="wipeAllSessions()"
                         class="text-[9px] font-black text-red-400 hover:text-red-300 uppercase tracking-widest transition-all">Borrar
@@ -419,7 +430,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=15.9"></script>
+    <script src="app.js?v=16.0"></script>
 </body>
 
 </html>
