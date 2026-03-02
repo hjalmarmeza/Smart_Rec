@@ -502,9 +502,9 @@ async function renderHistory() {
         }
 
         elements.historyList.innerHTML = filtered.map(s => `
-            <div onclick="openSessionById('${s.id}')" class="glass-card p-4 rounded-xl border border-white/5 hover:border-emerald-500/30 hover:bg-white/5 transition-all cursor-pointer group relative">
+            <div onclick="openSessionViewer('${s.id}')" class="glass-card p-4 rounded-xl border border-white/5 hover:border-emerald-500/30 hover:bg-white/5 transition-all cursor-pointer group relative">
                 <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all text-[8px] tracking-widest bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-full border border-emerald-500/20 uppercase font-black">
-                    Abrir Registro
+                    Ver Registro
                 </div>
                 <div class="flex justify-between items-center mb-2">
                     <span class="text-[9px] font-black text-violet-400 uppercase">${safeString(s.name)}</span>
@@ -534,6 +534,91 @@ async function renderHistory() {
         updateStorageMeter();
     }
 }
+
+// ===== SESSION VIEWER MODAL (New, reliable approach) =====
+let _viewerCurrentSession = null;
+
+window.openSessionViewer = async (id) => {
+    const modal = document.getElementById('sessionViewerModal');
+    if (!modal) return;
+
+    // Show modal immediately with loading state
+    modal.classList.remove('hidden');
+    document.getElementById('viewerSessionName').innerText = 'Cargando...';
+    document.getElementById('viewerSessionDate').innerText = '';
+    document.getElementById('viewerSummary').innerHTML = '<p class="text-slate-500 animate-pulse">Cargando resumen...</p>';
+    document.getElementById('viewerTranscript').innerText = 'Cargando transcripción...';
+
+    try {
+        const tx = db.transaction('sessions', 'readonly');
+        const s = await new Promise((resolve, reject) => {
+            const req = tx.objectStore('sessions').get(parseInt(id));
+            req.onsuccess = e => resolve(e.target.result);
+            req.onerror = e => reject(e.target.error);
+        });
+
+        if (!s) {
+            document.getElementById('viewerSummary').innerHTML = '<p class="text-red-400">Error: No se encontró el registro.</p>';
+            return;
+        }
+
+        _viewerCurrentSession = s;
+
+        document.getElementById('viewerSessionName').innerText = s.name || 'Sin título';
+        document.getElementById('viewerSessionDate').innerText = s.date || '';
+
+        // Render summary
+        if (s.summary) {
+            const lines = typeof s.summary === 'string' ? s.summary.split('\n') : [String(s.summary)];
+            document.getElementById('viewerSummary').innerHTML = lines.map(p => `<p class="mb-2">${p}</p>`).join('');
+        } else {
+            document.getElementById('viewerSummary').innerHTML = '<p class="text-slate-500">Sin resumen disponible.</p>';
+        }
+
+        // Render transcript
+        document.getElementById('viewerTranscript').innerText = s.transcript || 'Sin transcripción disponible.';
+
+    } catch (err) {
+        document.getElementById('viewerSummary').innerHTML = `<p class="text-red-400">Error al cargar: ${err.message}</p>`;
+    }
+};
+
+window.closeSessionViewer = () => {
+    const modal = document.getElementById('sessionViewerModal');
+    if (modal) modal.classList.add('hidden');
+    _viewerCurrentSession = null;
+};
+
+window.exportViewerPDF = () => {
+    const s = _viewerCurrentSession;
+    if (!s) return alert('No hay sesión cargada.');
+
+    const win = window.open('', '_blank');
+    if (!win) return alert('Activa las ventanas emergentes en tu navegador para exportar.');
+
+    win.document.write(`
+        <html><head><title>${s.name}</title>
+        <style>
+            body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; color: #1a1a2e; line-height: 1.7; }
+            h1 { color: #6d28d9; font-size: 22px; margin-bottom: 4px; }
+            .date { color: #888; font-size: 12px; margin-bottom: 30px; }
+            h2 { color: #444; font-size: 14px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; margin-top: 30px; }
+            p { font-size: 13px; margin-bottom: 12px; }
+            .transcript { background: #f9fafb; border-left: 3px solid #6d28d9; padding: 16px; font-size: 12px; white-space: pre-wrap; }
+        </style></head><body>
+        <h1>${s.name || 'Sin título'}</h1>
+        <p class="date">${s.date || ''}</p>
+        <h2>📝 RESUMEN EJECUTIVO</h2>
+        ${s.summary ? s.summary.split('\n').map(p => `<p>${p}</p>`).join('') : '<p>Sin resumen.</p>'}
+        <h2>🎙️ TRANSCRIPCIÓN</h2>
+        <div class="transcript">${s.transcript || 'Sin transcripción.'}</div>
+        </body></html>
+    `);
+    win.document.close();
+    setTimeout(() => win.print(), 500);
+};
+
+
 
 async function updateStorageMeter() {
     if (navigator.storage && navigator.storage.estimate) {
