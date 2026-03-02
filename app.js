@@ -350,7 +350,9 @@ window.openSlides = () => {
     activeSlideIndex = 0;
     renderSlide();
     document.getElementById('slidesModal').classList.remove('hidden');
-    try { document.documentElement.requestFullscreen(); } catch (e) { }
+    try {
+        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+    } catch (e) { }
 };
 
 window.closeSlides = () => {
@@ -443,17 +445,20 @@ function renderInfographic(data) {
     `;
 }
 
-window.toggleMindmapUI = () => {
-    const container = document.getElementById('mindmapContainer');
-    const toggle = document.getElementById('mindmapToggle');
-    if (container.classList.contains('hidden')) {
-        container.classList.remove('hidden');
-        toggle.classList.add('hidden');
-        if (panZoomInstance) panZoomInstance.resize().fit().center();
-    } else {
-        container.classList.add('hidden');
-        toggle.classList.remove('hidden');
-    }
+window.openMindmap = () => {
+    const modal = document.getElementById('mindmapModal');
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        if (panZoomInstance) {
+            panZoomInstance.resize();
+            panZoomInstance.fit();
+            panZoomInstance.center();
+        }
+    }, 100);
+};
+
+window.closeMindmap = () => {
+    document.getElementById('mindmapModal').classList.add('hidden');
 };
 
 window.resetZoom = () => { if (panZoomInstance) panZoomInstance.reset(); };
