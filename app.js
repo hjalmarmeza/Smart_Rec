@@ -258,17 +258,35 @@ async function analyzeSession() {
 
         if (titulo) elements.sessionName.value = titulo;
 
-        console.log("Rendering summary:", resumen);
+        console.log("Rendering summary data:", resumen);
 
-        // Formatear Resumen (Safe casting)
-        const summaryText = String(resumen || "Sin resumen.");
-        const formattedSummary = summaryText
-            .split('\n')
-            .filter(p => p.trim())
-            .map(p => `<p class="mb-3">${p.trim()}</p>`)
-            .join('');
+        // Formatear Resumen (Handle String or Object from IA)
+        let summaryHTML = "";
+        let summaryForStorage = "";
 
-        elements.aiSummary.innerHTML = formattedSummary;
+        if (typeof resumen === 'string') {
+            summaryForStorage = resumen;
+            summaryHTML = resumen
+                .split('\n')
+                .filter(p => p.trim())
+                .map(p => `<p class="mb-3">${p.trim()}</p>`)
+                .join('');
+        } else if (resumen && typeof resumen === 'object') {
+            // Case where AI structured the summary as an object
+            summaryForStorage = Object.entries(resumen).map(([k, v]) => `${k}: ${v}`).join('\n');
+            summaryHTML = Object.entries(resumen)
+                .map(([k, v]) => `
+                    <div class="mb-4">
+                        <span class="text-[10px] font-black text-violet-400 uppercase tracking-widest block mb-1">${k.replace(/_/g, ' ')}</span>
+                        <p class="text-white">${v}</p>
+                    </div>
+                `).join('');
+        } else {
+            summaryHTML = "<p class='text-slate-500'>No se pudo generar el resumen.</p>";
+            summaryForStorage = "Sin resumen.";
+        }
+
+        elements.aiSummary.innerHTML = summaryHTML;
 
         // Mindmap (On-demand) - Wrapped in try/catch to prevent blocking
         if (mindmap) {
@@ -302,7 +320,7 @@ async function analyzeSession() {
         await saveSessionToRepo({
             name: elements.sessionName.value || 'Sesión sin nombre',
             date: new Date().toLocaleString(),
-            summary: resumen || "Sin resumen.",
+            summary: summaryForStorage,
             transcript: transcriptionText,
             audioBlob: audioBlob
         });
