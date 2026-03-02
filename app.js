@@ -426,9 +426,9 @@ async function renderHistory() {
                     <button onclick="copyNoteById('${s.id}')" class="text-[9px] font-black text-slate-500 hover:text-white uppercase transition-all">Copiar</button>
                     <button onclick="downloadRepoAudio(${s.id})" class="text-[9px] font-black text-blue-400 hover:text-white uppercase transition-all">Audio</button>
                 </div>
-                <button type="button" onclick="deleteSessionById(${s.id}, event)" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-red-400 transition-all" title="Eliminar definitivamente">
-                    <span class="material-symbols-rounded text-sm">delete</span>
-                </button>
+                <div onclick="deleteSessionById(${s.id}, event)" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-red-400 transition-all cursor-pointer" title="Eliminar definitivamente">
+                    <span class="material-symbols-rounded text-sm pointer-events-none">delete</span>
+                </div>
             </div>
         </div>
     `).join('');
@@ -442,9 +442,7 @@ window.copyNoteById = async (id) => {
     alert("Copiado al portapapeles.");
 };
 window.deleteSessionById = async (id, event) => {
-    // CAPTURAR EL SCROLL INMEDIATAMENTE ANTES DE QUE CUALQUIER COSA CAMBIE
-    const currentScroll = window.scrollY;
-
+    // Evitar que el evento suba
     if (event) {
         event.preventDefault();
         event.stopPropagation();
@@ -452,24 +450,10 @@ window.deleteSessionById = async (id, event) => {
 
     if (!confirm("¿Estás seguro de eliminar esta sesión para siempre?")) return;
 
-    // Prevenir el salto repentino bloqueando la altura del contendor padre temporalmente
-    // Y transfiriendo el foco al padre para que el navegador no salte al <body>
-    const hList = document.getElementById('historyList');
-    if (hList) {
-        hList.tabIndex = -1;
-        hList.focus({ preventScroll: true });
-        hList.style.minHeight = hList.offsetHeight + 'px';
-    }
-
-    // Encontrar la tarjeta que recibió el clic para hacer una transición suave
+    // Encontrar la tarjeta específica en la pantalla
+    let card = null;
     if (event && event.target) {
-        const card = event.target.closest('.glass-card');
-        if (card) {
-            card.style.opacity = '0';
-            card.style.transform = 'scale(0.9)';
-            await new Promise(res => setTimeout(res, 200)); // Esperar la animación css
-            card.style.display = 'none'; // Ocultar antes de reescribir
-        }
+        card = event.target.closest('.glass-card');
     }
 
     const tx = db.transaction('sessions', 'readwrite');
@@ -479,15 +463,22 @@ window.deleteSessionById = async (id, event) => {
         req.onsuccess = () => r();
     });
 
-    await renderHistory();
-
-    // Mantener la posición firme
-    window.scrollTo(0, currentScroll);
-
-    if (hList) {
+    // Simplemente desvanecemos y removemos *únicamente* esta tarjeta de la pantalla
+    // Esto evita que Safari/Chrome redibujen la página entera y salten al tope.
+    if (card) {
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.9)';
         setTimeout(() => {
-            hList.style.minHeight = '';
-        }, 100);
+            card.remove();
+            // Si el contenedor queda vacío después de borrar, mostramos el mensaje de "Repo vacío"
+            const hList = document.getElementById('historyList');
+            if (hList && hList.children.length === 0) {
+                hList.innerHTML = '<p class="text-xs text-slate-600 text-center">Repo vacío</p>';
+            }
+        }, 300);
+    } else {
+        // En caso de fallo en encontrar la tarjeta, caemos de pie repintando la lista
+        await renderHistory();
     }
 };
 
