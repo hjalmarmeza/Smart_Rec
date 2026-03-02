@@ -13,26 +13,85 @@ let currentMindmapCode = "";
 let currentSessionType = 'reunion'; // Default: reunión
 
 // ===== SESSION TYPE SELECTOR =====
+
+// Config per type: what sections to show and what AI should return
+const SESSION_TYPE_CONFIG = {
+    reunion: {
+        label: 'Reunión',
+        showActionItems: true,
+        showDecisiones: true,
+        showConceptos: false,
+        summaryFocus: 'Resumen de reunión con debate, acuerdos y posturas de cada participante.',
+        aiFields: `"action_items": ["Tarea o compromiso detectado - Responsable"],
+                                  "decisiones": ["Decisión concreta tomada"],`
+    },
+    entrevista: {
+        label: 'Entrevista',
+        showActionItems: true,
+        showDecisiones: true,
+        showConceptos: false,
+        summaryFocus: 'Resumen de entrevista: hallazgos, perfil del entrevistado y conclusiones.',
+        aiFields: `"action_items": ["Puntos clave o próximos pasos del entrevistado"],
+                                  "decisiones": ["Conclusión o acuerdo alcanzado"],`
+    },
+    clase: {
+        label: 'Clase',
+        showActionItems: false,
+        showDecisiones: false,
+        showConceptos: true,
+        summaryFocus: 'Resumen académico enfocado en conceptos, teorías y puntos de aprendizaje clave.',
+        aiFields: `"conceptos_clave": ["Término: definición breve"],
+                                  "action_items": [],
+                                  "decisiones": [],`
+    },
+    dictado: {
+        label: 'Dictado',
+        showActionItems: false,
+        showDecisiones: false,
+        showConceptos: false,
+        summaryFocus: 'Transcripción limpia y formateada del texto dictado. Sin análisis adicional.',
+        aiFields: `"action_items": [],
+                                  "decisiones": [],`
+    },
+    personal: {
+        label: 'Personal',
+        showActionItems: false,
+        showDecisiones: false,
+        showConceptos: false,
+        summaryFocus: 'Ideas organizadas como notas personales estructuradas y coherentes.',
+        aiFields: `"action_items": [],
+                                  "decisiones": [],`
+    }
+};
+
 window.setSessionType = (type, btn) => {
     currentSessionType = type;
+    // Update button styles
     document.querySelectorAll('.session-type-btn').forEach(b => {
         b.classList.remove('border-violet-500/50', 'bg-violet-500/20', 'text-violet-400');
         b.classList.add('border-white/10', 'text-slate-500');
     });
     btn.classList.remove('border-white/10', 'text-slate-500');
     btn.classList.add('border-violet-500/50', 'bg-violet-500/20', 'text-violet-400');
+
+    // Show/hide result sections based on type
+    const cfg = SESSION_TYPE_CONFIG[type] || SESSION_TYPE_CONFIG['reunion'];
+    const actionContainer = document.getElementById('actionItemsContainer');
+    const decContainer = document.getElementById('decisionesContainer');
+    const conceptosContainer = document.getElementById('conceptosContainer');
+    if (actionContainer) actionContainer.classList.toggle('hidden', !cfg.showActionItems);
+    if (decContainer) decContainer.classList.toggle('hidden', !cfg.showDecisiones);
+    if (conceptosContainer) conceptosContainer.classList.toggle('hidden', !cfg.showConceptos);
 };
 
 function getSessionTypePrompt(type) {
-    const prompts = {
-        reunion: `\nAdemás del resumen, incluye estas secciones con estas etiquetas exactas:\n[ACTION_ITEMS]\n- Lista numerada de tareas y compromisos mencionados. Máximo 10.\n[/ACTION_ITEMS]\n[DECISIONES]\n- Decisiones concretas tomadas. Solo frases de decisión real.\n[/DECISIONES]`,
-        entrevista: `\nAdemás del resumen, incluye:\n[ACTION_ITEMS]\n- Puntos clave del entrevistado, compromisos o próximos pasos.\n[/ACTION_ITEMS]\n[DECISIONES]\n- Conclusiones alcanzadas.\n[/DECISIONES]`,
-        clase: `\nEl resumen debe enfocarse en conceptos educativos y definiciones. Al final agrega "Conceptos Clave:" con los 5-8 términos más importantes.`,
-        dictado: `\nProduce únicamente el texto dictado bien estructurado y formateado. Sin análisis adicional.`,
-        personal: `\nOrganiza las ideas mencionadas de forma coherente como notas personales estructuradas.`
-    };
-    return prompts[type] || prompts['reunion'];
+    const cfg = SESSION_TYPE_CONFIG[type] || SESSION_TYPE_CONFIG['reunion'];
+    return `
+Enfoque del resumen: ${cfg.summaryFocus}
+Campos adicionales requeridos en el JSON:
+${cfg.aiFields}`;
 }
+
 
 
 // --- Database Logic (IndexedDB for "Digital Repositories") ---
@@ -462,6 +521,22 @@ async function analyzeSession() {
             decContainer.classList.remove('hidden');
         } else if (decContainer) {
             decContainer.classList.add('hidden');
+        }
+
+        // Render Conceptos Clave (Clase mode)
+        const conceptos = chatData.conceptos_clave || [];
+        const conContainer = document.getElementById('conceptosContainer');
+        const conList = document.getElementById('conceptosList');
+        if (conceptos.length > 0 && conContainer && conList) {
+            conList.innerHTML = conceptos.map(c =>
+                `<div class="flex items-start gap-2 p-2 bg-amber-500/5 rounded-xl border border-amber-500/10">
+                    <span class="material-symbols-rounded text-amber-400 text-xs mt-0.5">bookmark</span>
+                    <span>${c}</span>
+                </div>`
+            ).join('');
+            conContainer.classList.remove('hidden');
+        } else if (conContainer) {
+            conContainer.classList.add('hidden');
         }
 
         // Mindmap (On-demand)
