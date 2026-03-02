@@ -253,10 +253,10 @@ async function analyzeSession() {
                                   "resumen": "Resumen ejecutivo en Español con Idea Central, Puntos Clave y Tareas.",
                                   "mindmap": "Código Mermaid de tipo mindmap. Empieza con 'mindmap' en la primera línea. Sé visual y jerárquico.",
                                   "slides": [
-                                    {"title": "Idea principal", "content": "Texto corto"},
-                                    {"title": "Puntos clave", "content": "Lista de puntos"},
-                                    {"title": "Acciones futuras", "content": "Qué hacer"},
-                                    {"title": "Conclusión", "content": "Cierre impactante"}
+                                    {"title": "💡 Idea Central", "content": "Texto impactante"},
+                                    {"title": "✨ Novedades y Hallazgos", "content": "Lo más nuevo o relevante detectado"},
+                                    {"title": "🚀 Puntos de Acción", "content": "Pasos a seguir"},
+                                    {"title": "🎯 Conclusión", "content": "Mensaje final de cierre"}
                                   ],
                                   "infografia": {
                                     "sentimiento": "Positivo/Neutral/Negativo",
@@ -432,9 +432,26 @@ function renderSlide() {
     const content = document.getElementById('slideContent');
     const counter = document.getElementById('slideCounter');
 
+    // PowerPoint aesthetic with gradient accents and big typography
+    content.classList.remove('animate-fade-in');
+    void content.offsetWidth; // Trigger reflow
+    content.classList.add('animate-fade-in');
+
     content.innerHTML = `
-        <h2 class="text-violet-400 text-6xl font-black mb-8 uppercase tracking-tighter">${slide.title}</h2>
-        <p class="text-white text-3xl leading-relaxed font-light">${slide.content.replace(/\n/g, '<br>')}</p>
+        <div class="mb-12 inline-block px-6 py-2 rounded-full border border-violet-500/30 bg-violet-500/5 text-violet-400 text-xs font-black tracking-[0.3em] uppercase">
+            Diapositiva ${activeSlideIndex + 1}
+        </div>
+        <h2 class="text-white text-5xl sm:text-7xl font-black mb-12 uppercase tracking-tight leading-none bg-gradient-to-br from-white to-white/40 bg-clip-text text-transparent italic">
+            ${slide.title}
+        </h2>
+        <div class="text-slate-300 text-xl sm:text-3xl leading-relaxed font-light max-w-3xl mx-auto">
+            ${slide.content.split('\n').map(line => `
+                <div class="flex items-start justify-center gap-4 mb-4">
+                    <span class="text-violet-500 mt-2">•</span>
+                    <span>${line.trim()}</span>
+                </div>
+            `).join('')}
+        </div>
     `;
     counter.innerText = `${activeSlideIndex + 1} / ${currentSlides.length}`;
 }
