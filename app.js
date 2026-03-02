@@ -421,7 +421,16 @@ async function analyzeSession() {
                                   "action_items": ["Tarea 1 - Responsable", "Tarea 2"],
                                   "decisiones": ["Decisión 1", "Decisión 2"],
                                   "mindmap": "Código Mermaid tipo 'mindmap'. PROHIBIDO usar flechas o corchetes. Solo texto indented.",
-                                  "slides": [{"title": "Título", "content": "Contenido extenso"}],
+                                  "slides": [
+                                    {"title": "Portada: Título impactante", "content": "Subtítulo y contexto general. Incluye emojis.", "type": "cover"},
+                                    {"title": "Contexto y Situación", "content": "• Punto clave 1\n• Punto clave 2\n• Punto clave 3\n• Punto clave 4", "type": "bullets"},
+                                    {"title": "Datos y Métricas", "content": "METRICS: Etiqueta1:Valor1|Etiqueta2:Valor2|Etiqueta3:Valor3|Etiqueta4:Valor4", "type": "metrics"},
+                                    {"title": "Análisis Comparativo", "content": "Descripc breve\nItem A [████████░░ 80%]\nItem B [█████░░░░░ 50%]\nItem C [███░░░░░░░ 30%]", "type": "analysis"},
+                                    {"title": "Puntos Debatidos", "content": "• Argumento principal con detalle\n• Contrapunto relevante\n• Postura de cada parte\n• Punto sin resolver", "type": "bullets"},
+                                    {"title": "Decisiones y Acuerdos", "content": "• Acuerdo 1 tomado\n• Acuerdo 2 tomado\n• Pendiente a resolver", "type": "decisions"},
+                                    {"title": "Próximos Pasos", "content": "METRICS: Prioridad Alta:Item 1|Fecha Límite:DD/MM|Responsable:Nombre|Estado:Pendiente", "type": "metrics"},
+                                    {"title": "Conclusión Final", "content": "Síntesis memorable y potente de lo más importante de la sesión.", "type": "conclusion"}
+                                  ],
                                   "infografia": {"sentimiento": "Optimista/Crítico", "relevancia": "0-100", "palabras_clave": ["Insight1"]}
                                 }`
                             },
@@ -966,17 +975,112 @@ function renderSlide() {
     const slide = currentSlides[activeSlideIndex];
     const content = document.getElementById('slideContent');
     const counter = document.getElementById('slideCounter');
+    const type = slide.type || 'default';
+    const isFirst = activeSlideIndex === 0;
+    const isLast = activeSlideIndex === currentSlides.length - 1;
+
+    const palettes = [
+        { from: 'from-violet-600', to: 'to-blue-600', accent: 'text-violet-300' },
+        { from: 'from-blue-600', to: 'to-cyan-500', accent: 'text-blue-300' },
+        { from: 'from-emerald-600', to: 'to-teal-500', accent: 'text-emerald-300' },
+        { from: 'from-amber-500', to: 'to-orange-600', accent: 'text-amber-300' },
+        { from: 'from-rose-600', to: 'to-pink-600', accent: 'text-rose-300' },
+        { from: 'from-indigo-600', to: 'to-purple-600', accent: 'text-indigo-300' },
+        { from: 'from-cyan-500', to: 'to-blue-600', accent: 'text-cyan-300' },
+        { from: 'from-fuchsia-600', to: 'to-violet-600', accent: 'text-fuchsia-300' },
+    ];
+    const pal = palettes[activeSlideIndex % palettes.length];
+
+    let bodyHTML = '';
+    const metricsMatch = slide.content && slide.content.match(/METRICS:\s*(.+)/);
+
+    if (metricsMatch) {
+        const pairs = metricsMatch[1].split('|').map(p => p.trim());
+        bodyHTML = `<div class="grid grid-cols-2 gap-4 w-full max-w-2xl mx-auto mt-6">
+            ${pairs.map(p => {
+            const [label, val] = p.split(':').map(x => x?.trim() || '');
+            return `<div class="bg-white/5 border border-white/10 rounded-3xl p-5 text-center">
+                    <div class="text-3xl sm:text-5xl font-black text-white mb-2">${val || '—'}</div>
+                    <div class="text-[10px] uppercase tracking-widest ${pal.accent}">${label}</div>
+                </div>`;
+        }).join('')}
+        </div>`;
+    } else if (slide.content && (slide.content.includes('•') || /^\s*-\s/m.test(slide.content))) {
+        const lines = slide.content.split('\n').filter(l => l.trim());
+        bodyHTML = `<ul class="text-left space-y-4 max-w-3xl mx-auto mt-6 w-full">
+            ${lines.map(line => {
+            const clean = line.replace(/^[•\-]\s*/, '').trim();
+            const isBullet = /^[•\-]/.test(line.trim());
+            return isBullet
+                ? `<li class="flex items-start gap-3 text-slate-200 text-lg sm:text-xl leading-snug">
+                        <span class="mt-2 w-2 h-2 rounded-full flex-shrink-0 bg-gradient-to-r ${pal.from} ${pal.to}"></span>
+                        <span>${clean}</span></li>`
+                : `<li class="text-slate-400 text-sm pl-5 italic">${clean}</li>`;
+        }).join('')}
+        </ul>`;
+    } else if (slide.content && slide.content.includes('█')) {
+        const lines = slide.content.split('\n').filter(l => l.trim());
+        bodyHTML = `<div class="space-y-4 text-left max-w-2xl mx-auto mt-6 w-full">
+            ${lines.map(line => {
+            const barMatch = line.match(/^(.+?)\s*\[([█░▓▒\s]+)(\d+%)\]/);
+            if (barMatch) {
+                const label = barMatch[1].trim();
+                const pct = parseInt(barMatch[3]);
+                return `<div>
+                        <div class="flex justify-between text-sm text-slate-300 mb-2">
+                            <span>${label}</span>
+                            <span class="${pal.accent} font-black">${barMatch[3]}</span>
+                        </div>
+                        <div class="h-3 bg-white/10 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r ${pal.from} ${pal.to} rounded-full" style="width:${pct}%"></div>
+                        </div></div>`;
+            }
+            return `<p class="text-slate-400 text-sm">${line}</p>`;
+        }).join('')}
+        </div>`;
+    } else if (type === 'cover' || isFirst) {
+        bodyHTML = `
+            <p class="text-slate-300 text-xl sm:text-2xl leading-relaxed max-w-2xl mx-auto font-light mt-4">${slide.content}</p>
+            <div class="mt-10 flex justify-center gap-2">
+                ${Array.from({ length: currentSlides.length }, (_, i) =>
+            `<div class="transition-all duration-300 rounded-full ${i === 0 ? `w-6 h-2 bg-gradient-to-r ${pal.from} ${pal.to}` : 'w-2 h-2 bg-white/20'}"></div>`).join('')}
+            </div>`;
+    } else if (type === 'conclusion' || isLast) {
+        bodyHTML = `<div class="max-w-2xl mx-auto mt-6">
+            <div class="text-5xl mb-6">💡</div>
+            <p class="text-white text-xl sm:text-2xl leading-relaxed font-light">${slide.content}</p>
+        </div>`;
+    } else {
+        const paras = (slide.content || '').split('\n').filter(p => p.trim());
+        bodyHTML = `<div class="text-slate-300 text-base sm:text-lg leading-relaxed max-w-3xl mx-auto space-y-4 text-left mt-6">
+            ${paras.map(p => `<p>${p}</p>`).join('')}
+        </div>`;
+    }
+
+    const dots = Array.from({ length: currentSlides.length }, (_, i) =>
+        `<div class="transition-all duration-300 rounded-full ${i === activeSlideIndex
+            ? `w-6 h-2 bg-gradient-to-r ${pal.from} ${pal.to}`
+            : 'w-2 h-2 bg-white/20'}"></div>`
+    ).join('');
 
     content.innerHTML = `
-        <h2 class="text-white text-5xl sm:text-7xl font-black mb-12 uppercase italic bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent">
-            ${slide.title}
-        </h2>
-        <div class="text-slate-300 text-xl sm:text-3xl leading-relaxed font-light max-w-5xl mx-auto space-y-6 text-left whitespace-pre-wrap">
-            ${slide.content}
+        <div class="w-full max-w-5xl mx-auto flex flex-col items-center text-center px-4 sm:px-10">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-5 bg-white/5 border border-white/10">
+                <div class="w-1.5 h-1.5 rounded-full bg-gradient-to-r ${pal.from} ${pal.to}"></div>
+                <span class="text-[9px] font-black uppercase tracking-[0.3em] ${pal.accent}">
+                    ${isFirst ? 'Portada' : isLast ? 'Conclusión' : 'Diapositiva ' + (activeSlideIndex + 1)}
+                </span>
+            </div>
+            <h2 class="text-white text-3xl sm:text-5xl md:text-6xl font-black mb-4 leading-tight bg-gradient-to-r ${pal.from} ${pal.to} bg-clip-text text-transparent">
+                ${slide.title}
+            </h2>
+            ${bodyHTML}
+            <div class="flex justify-center items-center gap-2 mt-10">${dots}</div>
         </div>
     `;
     counter.innerText = `${activeSlideIndex + 1} / ${currentSlides.length}`;
 }
+
 
 window.nextSlide = () => {
     if (activeSlideIndex < currentSlides.length - 1) { activeSlideIndex++; renderSlide(); }
