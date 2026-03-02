@@ -129,7 +129,19 @@ async function startFocus() {
             ? await navigator.mediaDevices.getUserMedia({ audio: true })
             : await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
 
-        mediaRecorder = new MediaRecorder(stream);
+        // High-Fidelity Recording Setup (128kbps Opus)
+        const options = {
+            audioBitsPerSecond: 128000,
+            mimeType: 'audio/webm;codecs=opus'
+        };
+
+        try {
+            mediaRecorder = new MediaRecorder(stream, options);
+        } catch (e) {
+            console.warn("High fidelity not supported, falling back to default.");
+            mediaRecorder = new MediaRecorder(stream);
+        }
+
         audioChunks = [];
 
         mediaRecorder.ondataavailable = (e) => {
@@ -202,10 +214,26 @@ async function analyzeSession() {
     }
 
     try {
-        updateProgress(40, "Transcribiendo (Nova-2 + Diarización)...");
-        const dgRes = await fetch(`https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&diarize=true&detect_language=true&utterances=true&punctuate=true`, {
+        updateProgress(40, "Transcribiendo (Nova-2 Elite + Bilingüe)...");
+        // Optimizamos parámetros para evitar el truncado y mejorar el bilingüismo
+        const dgParams = new URLSearchParams({
+            model: 'nova-2',
+            smart_format: 'true',
+            diarize: 'true',
+            detect_language: 'true',
+            language: 'es', // Preferred starting language
+            alternate_languages: 'en', // For perfect Spanglish support
+            utterances: 'true',
+            punctuate: 'true',
+            filler_words: 'true' // Captures everything
+        });
+
+        const dgRes = await fetch(`https://api.deepgram.com/v1/listen?${dgParams}`, {
             method: 'POST',
-            headers: { 'Authorization': `Token ${dgKey}`, 'Content-Type': 'audio/webm' },
+            headers: {
+                'Authorization': `Token ${dgKey}`,
+                'Content-Type': audioBlob.type || 'audio/webm'
+            },
             body: audioBlob
         });
         if (dgRes.ok) {
