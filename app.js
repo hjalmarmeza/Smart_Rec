@@ -1062,11 +1062,12 @@ window.exportViewerPDF = () => {
             .transcript { background: #f9fafb; border-left: 3px solid #6d28d9; padding: 16px; font-size: 12px; white-space: pre-wrap; }
         </style></head><body>
         <h1>${s.name || 'Sin título'}</h1>
-        <p class="date">${s.date || ''}</p>
+        <p class="date">${s.date || ''} — Generado por VoxMind AI</p>
         <h2>📝 RESUMEN EJECUTIVO</h2>
         ${s.summary ? s.summary.split('\n').map(p => `<p>${p}</p>`).join('') : '<p>Sin resumen.</p>'}
         <h2>🎙️ TRANSCRIPCIÓN</h2>
         <div class="transcript">${s.transcript || 'Sin transcripción.'}</div>
+        <p style="text-align:center; font-size:10px; color:#aaa; margin-top:40px;">Registro analizado con tecnología VoxMind AI</p>
         </body></html>
     `);
     win.document.close();
@@ -1499,7 +1500,7 @@ window.exportNote = async (format) => {
                     </style>
                 </head>
                 <body>
-                    <div class="header-brand">Smart Recorder / Reporte Analítico</div>
+                    <div class="header-brand">VoxMind AI / Reporte de Inteligencia Auditiva</div>
                     <h1>${title}</h1>
                     <div class="date">${date}</div>
                     
@@ -1509,7 +1510,7 @@ window.exportNote = async (format) => {
                     <h2>Transcripción Oficial</h2>
                     <div class="content" style="padding: 10px 0;">${styledTranscript}</div>
 
-                    <div class="footer">Documento generado automáticamente por IA a través de Smart Recorder.</div>
+                    <div class="footer">Documento generado por IA a través de VoxMind AI.</div>
                 </body>
             </html>
         `);
@@ -1526,7 +1527,7 @@ window.exportMindmapPDF = () => {
     const win = window.open('', '_blank');
     const svgData = new XMLSerializer().serializeToString(svgElement);
     win.document.write(`
-        <html><head><title>Mapa Mental - Smart Recorder</title></head>
+        <html><head><title>Mapa Mental - VoxMind AI</title></head>
         <body style="margin: 0; padding: 20px; display: flex; align-items: flex-start; justify-content: flex-start; min-height: 100vh; font-family: sans-serif;">
             <div style="width: 100%;">
                 <h1 style="color: #6366f1; border-bottom: 2px solid #6366f1; padding-bottom: 10px; margin-bottom: 20px;">Mapa Conceptual Visual</h1>
@@ -1559,7 +1560,7 @@ window.exportSlidesPDF = () => {
                 
                 <!-- Footer -->
                 <div style="margin-top: auto; border-top: 1px solid #f8fafc; padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 8pt; font-weight: bold; color: #cbd5e1; letter-spacing: 1px;">SMART RECORDER</span>
+                    <span style="font-size: 8pt; font-weight: bold; color: #cbd5e1; letter-spacing: 1px;">VOXMIND AI</span>
                     <span style="font-size: 8pt; color: #94a3b8;">${coverDate}</span>
                 </div>
             </div>
