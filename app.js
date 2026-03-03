@@ -744,7 +744,142 @@ window.openSessionViewer = async (id) => {
     }
 };
 
+// ===== VIEWER: Generate Mindmap from saved session =====
+window.generateViewerMindmap = async () => {
+    const s = _viewerCurrentSession;
+    if (!s) return alert('Abre un registro primero.');
+
+    const transcript = s.transcript || s.summary || '';
+    if (!transcript || transcript.length < 20) return alert('Este registro no tiene suficiente contenido para generar un mapa mental.');
+
+    const apiKey = localStorage.getItem('sf_api_key_v2');
+    const baseUrl = localStorage.getItem('sf_base_url') || 'https://api.siliconflow.com/v1';
+    if (!apiKey) return alert('Configura tu API Key en Ajustes ⚙️');
+
+    const progress = document.getElementById('viewerProgress');
+    const progressBar = document.getElementById('viewerProgressBar');
+    const progressLabel = document.getElementById('viewerProgressLabel');
+    const mmSection = document.getElementById('viewerMindmapSection');
+    const mmContainer = document.getElementById('viewerMindmapContainer');
+
+    progress.classList.remove('hidden');
+    progressBar.style.width = '20%';
+    progressLabel.innerText = 'Generando Mapa Mental con IA...';
+    mmSection.classList.add('hidden');
+
+    try {
+        progressBar.style.width = '60%';
+        const res = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'deepseek-ai/DeepSeek-V3',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Genera ÚNICAMENTE código Mermaid de tipo mindmap basado en el texto. REGLA FATAL: PROHIBIDO usar flechas (-->), corchetes ([ ]) o paréntesis. Solo texto plano con indentación. Responde SOLO el código mermaid, sin markdown ni explicaciones.'
+                    },
+                    { role: 'user', content: `Genera un mindmap detallado de este contenido:\n\n${transcript.substring(0, 4000)}` }
+                ]
+            })
+        });
+
+        progressBar.style.width = '90%';
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        const data = await res.json();
+        let mermaidCode = data.choices[0].message.content.trim();
+        // Clean markdown fences if present
+        mermaidCode = mermaidCode.replace(/^```[a-z]*\n?/i, '').replace(/```$/, '').trim();
+
+        // Render mermaid inside the viewer
+        mmContainer.innerHTML = `<div class="mermaid">${mermaidCode}</div>`;
+        await mermaid.run({ nodes: mmContainer.querySelectorAll('.mermaid') });
+
+        mmSection.classList.remove('hidden');
+        mmSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        progressBar.style.width = '100%';
+        progressLabel.innerText = '¡Mapa Mental generado!';
+        setTimeout(() => progress.classList.add('hidden'), 1500);
+
+    } catch (err) {
+        progressLabel.innerText = 'Error: ' + err.message;
+        progressBar.style.width = '0%';
+        setTimeout(() => progress.classList.add('hidden'), 3000);
+    }
+};
+
+// ===== VIEWER: Generate Slides from saved session =====
+window.generateViewerSlides = async () => {
+    const s = _viewerCurrentSession;
+    if (!s) return alert('Abre un registro primero.');
+
+    const transcript = s.transcript || s.summary || '';
+    if (!transcript || transcript.length < 20) return alert('Este registro no tiene suficiente contenido para generar diapositivas.');
+
+    const apiKey = localStorage.getItem('sf_api_key_v2');
+    const baseUrl = localStorage.getItem('sf_base_url') || 'https://api.siliconflow.com/v1';
+    if (!apiKey) return alert('Configura tu API Key en Ajustes ⚙️');
+
+    const progress = document.getElementById('viewerProgress');
+    const progressBar = document.getElementById('viewerProgressBar');
+    const progressLabel = document.getElementById('viewerProgressLabel');
+
+    progress.classList.remove('hidden');
+    progressBar.style.width = '20%';
+    progressLabel.innerText = 'Generando Presentación con IA...';
+
+    try {
+        progressBar.style.width = '60%';
+        const res = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'deepseek-ai/DeepSeek-V3',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `Genera una presentación en JSON con MÍNIMO 8 diapositivas basada en el contenido dado. 
+                        JSON debe ser: {"slides": [{"title": "...", "content": "...", "type": "cover|bullets|metrics|analysis|decisions|conclusion"}]}
+                        Para tipo "metrics": content = "METRICS: Label1:Valor1|Label2:Valor2|Label3:Valor3|Label4:Valor4"
+                        Para tipo "analysis": content incluye barras "Item [████░░ 70%]"
+                        Para tipo "bullets": content con líneas "• Punto"
+                        Responde SOLO JSON puro, sin markdown.`
+                    },
+                    { role: 'user', content: `Título: ${s.name}\n\nContenido:\n${transcript.substring(0, 5000)}` }
+                ],
+                response_format: { type: 'json_object' }
+            })
+        });
+
+        progressBar.style.width = '90%';
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        const data = await res.json();
+        const parsed = JSON.parse(data.choices[0].message.content);
+
+        if (!parsed.slides || !Array.isArray(parsed.slides) || parsed.slides.length === 0) {
+            throw new Error('La IA no generó diapositivas válidas.');
+        }
+
+        // Load slides into the global presenter
+        currentSlides = parsed.slides;
+        activeSlideIndex = 0;
+        progressBar.style.width = '100%';
+        progressLabel.innerText = '¡Presentación lista!';
+        setTimeout(() => {
+            progress.classList.add('hidden');
+            // Open the slides modal (close viewer first to avoid z-index conflicts)
+            openSlides();
+        }, 600);
+
+    } catch (err) {
+        progressLabel.innerText = 'Error: ' + err.message;
+        progressBar.style.width = '0%';
+        setTimeout(() => progress.classList.add('hidden'), 3000);
+    }
+};
+
 window.closeSessionViewer = () => {
+
     const modal = document.getElementById('sessionViewerModal');
     if (modal) modal.classList.add('hidden');
     _viewerCurrentSession = null;

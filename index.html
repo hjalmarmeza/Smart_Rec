@@ -524,27 +524,72 @@
         style="background: rgba(2,6,23,0.97); backdrop-filter: blur(20px);">
         <div class="h-full flex flex-col overflow-hidden">
             <!-- Header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-white/10 flex-shrink-0">
-                <div>
-                    <p class="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Registro Archivado
+            <div class="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
+                <div class="flex-1 min-w-0 pr-4">
+                    <p class="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-0.5">Registro Archivado
                     </p>
-                    <h2 id="viewerSessionName" class="text-white font-black text-lg">Cargando...</h2>
+                    <h2 id="viewerSessionName" class="text-white font-black text-base leading-tight break-words">
+                        Cargando...</h2>
                     <p id="viewerSessionDate" class="text-[9px] text-slate-500 mt-0.5"></p>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button onclick="exportViewerPDF()"
-                        class="px-4 py-2 bg-violet-600/20 text-violet-400 border border-violet-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-violet-600/40 transition-all flex items-center gap-2">
-                        <span class="material-symbols-rounded text-sm">picture_as_pdf</span> PDF
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <!-- Mindmap button -->
+                    <button onclick="generateViewerMindmap()"
+                        class="px-3 py-2 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600/40 transition-all flex items-center gap-1.5">
+                        <span class="material-symbols-rounded text-sm">account_tree</span>
+                        <span class="hidden sm:inline">Mapa Mental</span>
                     </button>
+                    <!-- Slides button -->
+                    <button onclick="generateViewerSlides()"
+                        class="px-3 py-2 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600/40 transition-all flex items-center gap-1.5">
+                        <span class="material-symbols-rounded text-sm">present_to_all</span>
+                        <span class="hidden sm:inline">Presentación</span>
+                    </button>
+                    <!-- PDF button -->
+                    <button onclick="exportViewerPDF()"
+                        class="px-3 py-2 bg-violet-600/20 text-violet-400 border border-violet-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-violet-600/40 transition-all flex items-center gap-1.5">
+                        <span class="material-symbols-rounded text-sm">picture_as_pdf</span>
+                        <span class="hidden sm:inline">PDF</span>
+                    </button>
+                    <!-- Close -->
                     <button onclick="closeSessionViewer()"
-                        class="w-10 h-10 flex items-center justify-center text-white/50 hover:text-white transition-all rounded-xl hover:bg-white/10">
+                        class="w-9 h-9 flex items-center justify-center text-white/50 hover:text-white transition-all rounded-xl hover:bg-white/10">
                         <span class="material-symbols-rounded">close</span>
                     </button>
                 </div>
             </div>
 
             <!-- Content: Scrollable -->
-            <div class="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+            <div class="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+
+                <!-- AI Processing Progress (hidden by default) -->
+                <div id="viewerProgress" class="hidden">
+                    <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden relative">
+                        <div id="viewerProgressBar"
+                            class="absolute top-0 left-0 h-full bg-gradient-to-r from-violet-500 to-blue-500 transition-all duration-500"
+                            style="width:0%"></div>
+                        <div class="absolute inset-0 bg-white/10 animate-pulse"></div>
+                    </div>
+                    <p id="viewerProgressLabel"
+                        class="text-[9px] text-slate-500 uppercase tracking-widest text-center mt-2">Procesando...</p>
+                </div>
+
+                <!-- Mindmap In-Modal (hidden until generated) -->
+                <div id="viewerMindmapSection" class="hidden glass-card p-4 rounded-3xl border border-emerald-500/20">
+                    <div class="flex items-center justify-between mb-3">
+                        <span
+                            class="text-[9px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                            <span class="material-symbols-rounded text-sm">account_tree</span> Mapa Mental
+                        </span>
+                        <button onclick="document.getElementById('viewerMindmapSection').classList.add('hidden')"
+                            class="text-slate-600 hover:text-white transition-all">
+                            <span class="material-symbols-rounded text-sm">close</span>
+                        </button>
+                    </div>
+                    <div id="viewerMindmapContainer" class="w-full min-h-64 overflow-auto rounded-2xl bg-black/20 p-2">
+                    </div>
+                </div>
+
                 <!-- Summary Section -->
                 <div class="glass-card p-6 rounded-3xl border border-white/10">
                     <p class="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-4">Resumen Ejecutivo
@@ -564,6 +609,7 @@
             </div>
         </div>
     </div>
+
     <!-- Session Types Info Modal -->
     <div id="sessionTypesModal" class="fixed inset-0 z-[300] hidden flex items-center justify-center p-4"
         style="background: rgba(2,6,23,0.92); backdrop-filter: blur(24px);">
@@ -739,7 +785,7 @@
     </div>
 
 
-    <script src="app.js?v=17.1"></script>
+    <script src="app.js?v=17.2"></script>
 </body>
 
 </html>
