@@ -1,4 +1,12 @@
-// Smart Recorder - Repositories, Auto-Recovery & Spanglish Support
+// VoxMind AI - Inteligencia Auditiva de Élite
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('VoxMind AI: Modo Offline Activo'))
+            .catch(err => console.log('SW Error:', err));
+    });
+}
+
 let mediaRecorder;
 let audioChunks = [];
 let startTime, timerInterval;
@@ -1601,21 +1609,68 @@ function renderInfographic(data) {
     if (!container || !content) return;
     container.classList.remove('hidden');
 
+    // Calculate Speaker Stats from transcript tags [Voz N]
+    const transcript = elements.aiTranscript.innerText || '';
+    const speakerMatches = transcript.match(/\[Voz\s+(\d+)\]/g) || [];
+    const speakerStats = {};
+    let totalMentions = speakerMatches.length;
+
+    speakerMatches.forEach(tag => {
+        const num = tag.match(/\d+/)[0];
+        speakerStats[num] = (speakerStats[num] || 0) + 1;
+    });
+
+    const colors = [
+        'from-violet-500 to-blue-500',
+        'from-emerald-500 to-teal-500',
+        'from-amber-500 to-orange-500',
+        'from-rose-500 to-pink-500',
+    ];
+
+    let speakerHTML = '';
+    if (totalMentions > 0) {
+        speakerHTML = `
+            <div class="w-full mt-6 pt-6 border-t border-white/5">
+                <p class="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 text-center">Participación por Voz</p>
+                <div class="space-y-4">
+                    ${Object.entries(speakerStats).map(([num, count], i) => {
+            const pct = Math.round((count / totalMentions) * 100);
+            const colorClass = colors[i % colors.length];
+            return `
+                            <div>
+                                <div class="flex justify-between text-[10px] font-bold text-slate-400 mb-1.5 px-1">
+                                    <span>Voz ${num}</span>
+                                    <span class="text-white">${pct}%</span>
+                                </div>
+                                <div class="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                    <div class="h-full bg-gradient-to-r ${colorClass} rounded-full transition-all duration-1000" style="width: ${pct}%"></div>
+                                </div>
+                            </div>
+                        `;
+        }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
     content.innerHTML = `
-        <div class="glass p-3 px-6 rounded-2xl border border-white/5 text-center min-w-[120px]">
-            <span class="text-[8px] text-slate-500 uppercase block mb-1">Sentimiento</span>
-            <span class="text-xs font-bold text-white uppercase">${data.sentimiento}</span>
+        <div class="flex flex-wrap justify-center gap-3 w-full">
+            <div class="glass p-3 px-6 rounded-2xl border border-white/5 text-center min-w-[120px]">
+                <span class="text-[8px] text-slate-500 uppercase block mb-1">Sentimiento</span>
+                <span class="text-xs font-bold text-white uppercase">${data.sentimiento}</span>
+            </div>
+            <div class="glass p-3 px-6 rounded-2xl border border-white/5 text-center min-w-[120px]">
+                <span class="text-[8px] text-slate-500 uppercase block mb-1">Relevancia</span>
+                <span class="text-xs font-bold text-blue-400">${data.relevancia}%</span>
+            </div>
         </div>
-        <div class="glass p-3 px-6 rounded-2xl border border-white/5 text-center min-w-[120px]">
-            <span class="text-[8px] text-slate-500 uppercase block mb-1">Relevancia</span>
-            <span class="text-xs font-bold text-blue-400">${data.relevancia}%</span>
-        </div>
-        <div class="glass p-3 px-6 rounded-2xl border border-white/5 text-center w-full">
+        <div class="glass p-3 px-6 rounded-2xl border border-white/5 text-center w-full mt-3">
             <span class="text-[8px] text-slate-500 uppercase block mb-1">Conceptos Clave</span>
             <div class="flex flex-wrap justify-center gap-2 mt-1">
                 ${(data.palabras_clave || []).map(w => `<span class="px-3 py-1 bg-violet-500/10 rounded-full text-[10px] text-slate-200 border border-white/10 uppercase font-black">${w}</span>`).join('')}
             </div>
         </div>
+        ${speakerHTML}
     `;
 }
 
