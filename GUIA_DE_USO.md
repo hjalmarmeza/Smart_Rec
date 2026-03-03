@@ -1,6 +1,6 @@
-# Guía de Uso: Smart Recorder 🎙️🧠
+# Guía de Uso: VoxMind AI 🎙️🧠
 
-Bienvenido a **Smart Recorder**, tu asistente de IA personal para capturar y analizar voz. Esta guía te ayudará a sacarle el máximo provecho en menos de 2 minutos.
+Bienvenido a **VoxMind AI**, tu asistente de IA personal para capturar y analizar voz. Esta guía te ayudará a sacarle el máximo provecho en menos de 2 minutos.
 
 ---
 
@@ -11,7 +11,7 @@ Para que la IA funcione gratis y con la mejor calidad, usaremos **SiliconFlow**.
 1.  **Obtén tu API Key:** Entra en [cloud.siliconflow.cn/account/ak](https://cloud.siliconflow.cn/account/ak) (regístrate con Google o GitHub). Te darán saldo gratuito inicial.
 2.  **Crea una Key:** Haz clic en "Create API Key" y cópiala.
 3.  **Configura la App:** 
-    *   Abre **Smart Recorder** en tu navegador.
+    *   Abre **VoxMind AI** en tu navegador.
     *   Toca el icono de engranaje (⚙️) en la esquina superior derecha.
     *   Pega tu llave en el campo **SiliconFlow API Key**.
     *   Dale a **GUARDAR CONFIGURACIÓN**.
