@@ -796,6 +796,7 @@ window.generateViewerMindmap = async () => {
         progressLabel.innerText = '¡Mapa listo! Abriendo...';
         setTimeout(() => {
             progress.classList.add('hidden');
+            closeSessionViewer();
             openMindmap();
         }, 400);
 
@@ -873,6 +874,7 @@ window.generateViewerSlides = async () => {
         progressLabel.innerText = `¡${parsed.slides.length} diapositivas listas!`;
         setTimeout(() => {
             progress.classList.add('hidden');
+            closeSessionViewer();
             openSlides();
         }, 600);
 

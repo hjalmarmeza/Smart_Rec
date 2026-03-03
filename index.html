@@ -456,42 +456,65 @@
     </div>
 
     <!-- Mindmap Modal (Full Screen) -->
-    <div id="mindmapModal"
-        class="fixed inset-0 z-[120] bg-slate-950/98 backdrop-blur-3xl hidden flex flex-col p-6 sm:p-10">
-        <div class="flex items-center justify-between mb-8">
-            <div class="flex flex-col">
-                <span class="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em]">Visual Insight</span>
-                <h2 class="text-2xl font-black text-white uppercase italic">Mapa Mental Interactivo</h2>
+    <div id="mindmapModal" class="fixed inset-0 z-[250] hidden flex flex-col"
+        style="background: radial-gradient(ellipse at 20% 20%, rgba(139,92,246,0.08) 0%, rgba(2,6,23,0.98) 60%), rgba(2,6,23,0.99); backdrop-filter: blur(30px);">
+
+        <!-- Subtle grid background -->
+        <div class="absolute inset-0 pointer-events-none"
+            style="background-image: linear-gradient(rgba(139,92,246,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.04) 1px, transparent 1px); background-size: 40px 40px;">
+        </div>
+
+        <!-- Header -->
+        <div class="relative flex items-center justify-between px-6 py-4 border-b border-white/5">
+            <div class="flex items-center gap-4">
+                <!-- Glow icon -->
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center"
+                    style="background: linear-gradient(135deg, rgba(16,185,129,0.3), rgba(5,150,105,0.2)); border: 1px solid rgba(16,185,129,0.3); box-shadow: 0 0 20px rgba(16,185,129,0.15);">
+                    <span class="material-symbols-rounded text-emerald-400">account_tree</span>
+                </div>
+                <div>
+                    <span class="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em] block">Visual
+                        Insight</span>
+                    <h2 class="text-lg font-black text-white">Mapa Mental Interactivo</h2>
+                </div>
             </div>
-            <div class="flex gap-4">
+            <div class="flex gap-2">
                 <button onclick="exportMindmapPDF()"
-                    class="px-4 py-2 bg-violet-600/20 text-violet-400 border border-violet-500/30 rounded-xl text-[10px] font-black uppercase hover:bg-violet-600/40 transition-all flex items-center gap-2">
-                    <span class="material-symbols-rounded text-sm">picture_as_pdf</span> Guardar PDF
+                    class="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 text-violet-400 hover:text-white"
+                    style="background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2);">
+                    <span class="material-symbols-rounded text-sm">picture_as_pdf</span>
+                    <span class="hidden sm:inline">PDF</span>
                 </button>
                 <button onclick="resetZoom()"
-                    class="px-4 py-2 glass rounded-xl text-[10px] font-black text-slate-400 uppercase hover:text-white transition-all flex items-center gap-2">
-                    <span class="material-symbols-rounded text-sm">restart_alt</span> Reset Zoom
+                    class="px-4 py-2 rounded-xl text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-white transition-all flex items-center gap-2"
+                    style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);">
+                    <span class="material-symbols-rounded text-sm">restart_alt</span>
+                    <span class="hidden sm:inline">Reset</span>
                 </button>
                 <button onclick="closeMindmap()"
-                    class="w-12 h-12 glass rounded-2xl flex items-center justify-center text-white hover:bg-white/10 transition-all">
+                    class="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-400 hover:text-white transition-all"
+                    style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);">
                     <span class="material-symbols-rounded">close</span>
                 </button>
             </div>
         </div>
 
-        <div class="flex-1 bg-black/40 rounded-[40px] border border-white/5 relative overflow-hidden cursor-move">
-            <div id="mermaidDiagram" class="mermaid h-full w-full flex justify-center items-center">
-                <!-- SVG Injected here -->
-            </div>
-            <div
-                class="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 glass rounded-full text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] pointer-events-none">
-                Usa el mouse para Zoom y Arrastrar
+        <!-- Diagram area -->
+        <div class="relative flex-1 overflow-hidden m-4 rounded-3xl"
+            style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05);">
+            <div id="mermaidDiagram" class="mermaid h-full w-full flex justify-center items-center"></div>
+            <!-- Hint -->
+            <div class="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full pointer-events-none"
+                style="background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.06);">
+                <span class="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em]">🖱️ Arrastra · 🔍 Rueda
+                    del mouse para Zoom</span>
             </div>
         </div>
     </div>
 
+
     <!-- Slides Modal (Full Screen) -->
-    <div id="slidesModal" class="fixed inset-0 z-[130] bg-black hidden flex flex-col items-center justify-center p-10">
+    <div id="slidesModal" class="fixed inset-0 z-[250] bg-black hidden flex flex-col items-center justify-center p-10">
         <button onclick="closeSlides()"
             class="absolute top-10 right-10 w-12 h-12 glass rounded-2xl flex items-center justify-center text-white/40 hover:text-white transition-all">
             <span class="material-symbols-rounded">close</span>
@@ -785,7 +808,7 @@
     </div>
 
 
-    <script src="app.js?v=17.3"></script>
+    <script src="app.js?v=17.4"></script>
 </body>
 
 </html>
