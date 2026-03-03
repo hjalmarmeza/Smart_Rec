@@ -94,8 +94,45 @@ ${cfg.aiFields}`;
 
 
 
-// --- Database Logic (IndexedDB for "Digital Repositories") ---
+// ===== TIMESTAMP TRANSCRIPT RENDERER =====
+function renderTimestampedTranscript(text) {
+    if (!text) return '<span class="text-slate-500">Sin transcripción.</span>';
+
+    const speakerColors = [
+        'from-violet-500 to-blue-500',
+        'from-emerald-500 to-teal-500',
+        'from-amber-500 to-orange-500',
+        'from-rose-500 to-pink-500',
+        'from-cyan-500 to-blue-500',
+        'from-fuchsia-500 to-violet-500',
+    ];
+
+    const lines = text.split('\n').filter(l => l.trim());
+    return lines.map(line => {
+        // Match [MM:SS] optionally followed by [Voz N]: text
+        const m = line.match(/^\[(\d{2}:\d{2})\](?:\s*\[?Voz\s*(\d+)\]?)?:?\s*(.*)/i);
+        if (m) {
+            const time = m[1];
+            const speakerNum = m[2] ? parseInt(m[2]) - 1 : null;
+            const content = m[3] || '';
+            const colorClass = speakerNum !== null ? speakerColors[speakerNum % speakerColors.length] : 'from-slate-500 to-slate-600';
+            const speakerBadge = speakerNum !== null
+                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black text-white bg-gradient-to-r ${colorClass} mr-2">Voz ${speakerNum + 1}</span>`
+                : '';
+            return `<div class="flex items-start gap-2 mb-4 group">
+                <span class="flex-shrink-0 mt-0.5 px-2 py-0.5 rounded-lg text-[9px] font-black text-violet-300 cursor-default select-none"
+                    style="background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.2);">${time}</span>
+                <p class="text-slate-300 text-xs leading-relaxed">${speakerBadge}${content}</p>
+            </div>`;
+        }
+        // Plain line (no timestamp)
+        return `<p class="text-slate-400 text-xs leading-relaxed mb-3">${line}</p>`;
+    }).join('');
+}
+
+// --- Database Logic (IndexedDB for "Digital Repositories\") ---
 const DB_NAME = 'SmartRecorderRepo';
+
 const DB_VERSION = 2;
 let db;
 
@@ -339,7 +376,14 @@ async function analyzeSession() {
                     console.warn("Utterances too short, using full channel transcript.");
                     transcriptionText = fullTranscript;
                 } else {
-                    transcriptionText = utterances.map(u => `[Voz ${u.speaker + 1}]: ${u.transcript}`).join('\n\n');
+                    // Build transcript with [MM:SS] timestamps per utterance
+                    transcriptionText = utterances.map(u => {
+                        const secs = Math.floor(u.start || 0);
+                        const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+                        const ss = String(secs % 60).padStart(2, '0');
+                        const speaker = u.speaker !== undefined ? `[Voz ${u.speaker + 1}]` : '';
+                        return `[${mm}:${ss}]${speaker ? ' ' + speaker : ''}: ${u.transcript}`;
+                    }).join('\n\n');
                 }
             } else {
                 transcriptionText = fullTranscript;
@@ -372,7 +416,8 @@ async function analyzeSession() {
         return;
     }
 
-    elements.aiTranscript.innerText = transcriptionText;
+    elements.aiTranscript.innerHTML = renderTimestampedTranscript(transcriptionText);
+
 
 
 
@@ -737,7 +782,7 @@ window.openSessionViewer = async (id) => {
         }
 
         // Render transcript
-        document.getElementById('viewerTranscript').innerText = s.transcript || 'Sin transcripción disponible.';
+        document.getElementById('viewerTranscript').innerHTML = renderTimestampedTranscript(s.transcript || '');
 
     } catch (err) {
         document.getElementById('viewerSummary').innerHTML = `<p class="text-red-400">Error al cargar: ${err.message}</p>`;
@@ -886,11 +931,118 @@ window.generateViewerSlides = async () => {
 };
 
 window.closeSessionViewer = () => {
-
     const modal = document.getElementById('sessionViewerModal');
     if (modal) modal.classList.add('hidden');
     _viewerCurrentSession = null;
+    _viewerChatHistory = [];
 };
+
+// ===== CHAT CON LA GRABACIÓN =====
+let _viewerChatHistory = [];
+
+window.sendViewerChat = async () => {
+    const s = _viewerCurrentSession;
+    if (!s) return;
+    const input = document.getElementById('viewerChatInput');
+    const question = (input?.value || '').trim();
+    if (!question) return;
+
+    const apiKey = localStorage.getItem('sf_api_key_v2');
+    const baseUrl = localStorage.getItem('sf_base_url') || 'https://api.siliconflow.com/v1';
+    if (!apiKey) return alert('Configura tu API Key en Ajustes ⚙️');
+
+    const transcript = s.transcript || '';
+    const chatBox = document.getElementById('viewerChatBox');
+    input.value = '';
+    input.disabled = true;
+
+    // Render user message
+    _viewerChatHistory.push({ role: 'user', content: question });
+    renderChatHistory();
+
+    // Typing indicator
+    const typingId = 'typing_' + Date.now();
+    chatBox.insertAdjacentHTML('beforeend', `
+        <div id="${typingId}" class="flex items-center gap-2 mt-3">
+            <div class="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0" style="background: linear-gradient(135deg,rgba(139,92,246,0.3),rgba(59,130,246,0.3))">
+                <span class="material-symbols-rounded text-xs text-violet-400">smart_toy</span>
+            </div>
+            <div class="px-3 py-2 rounded-2xl text-xs text-slate-400" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);">
+                <span class="animate-pulse">Pensando...</span>
+            </div>
+        </div>`);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    try {
+        const messages = [
+            {
+                role: 'system',
+                content: `Eres un asistente que ayuda a analizar grabaciones. Solo responde basándote en el contenido de la transcripción proporcionada. Si la información no está en la transcripción, dilo claramente. Responde en el mismo idioma de la pregunta. Sé conciso y directo.\n\nTRANSCRIPCIÓN:\n${transcript.substring(0, 6000)}`
+            },
+            ..._viewerChatHistory
+        ];
+
+        const res = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'deepseek-ai/DeepSeek-V3', messages })
+        });
+
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        const data = await res.json();
+        const answer = data.choices[0].message.content.trim();
+        _viewerChatHistory.push({ role: 'assistant', content: answer });
+
+    } catch (err) {
+        _viewerChatHistory.push({ role: 'assistant', content: `❌ Error: ${err.message}` });
+    } finally {
+        document.getElementById(typingId)?.remove();
+        input.disabled = false;
+        input.focus();
+        renderChatHistory();
+    }
+};
+
+function renderChatHistory() {
+    const chatBox = document.getElementById('viewerChatBox');
+    if (!chatBox) return;
+
+    // Only re-render messages (keep typing indicator if present)
+    const messages = _viewerChatHistory.map(msg => {
+        const isUser = msg.role === 'user';
+        return isUser
+            ? `<div class="flex justify-end mb-3">
+                <div class="max-w-[85%] px-3 py-2 rounded-2xl rounded-tr-sm text-xs text-white leading-relaxed" style="background: linear-gradient(135deg,rgba(139,92,246,0.4),rgba(59,130,246,0.3)); border:1px solid rgba(139,92,246,0.3);">
+                    ${msg.content}
+                </div>
+               </div>`
+            : `<div class="flex items-start gap-2 mb-3">
+                <div class="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style="background: linear-gradient(135deg,rgba(139,92,246,0.2),rgba(59,130,246,0.2)); border:1px solid rgba(139,92,246,0.2)">
+                    <span class="material-symbols-rounded text-xs text-violet-400">smart_toy</span>
+                </div>
+                <div class="max-w-[85%] px-3 py-2 rounded-2xl rounded-tl-sm text-xs text-slate-200 leading-relaxed" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);">
+                    ${msg.content.replace(/\n/g, '<br>')}
+                </div>
+               </div>`;
+    }).join('');
+
+    chatBox.innerHTML = messages || '<p class="text-slate-600 text-[10px] text-center uppercase tracking-widest mt-4">Haz una pregunta sobre esta grabación</p>';
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+window.clearViewerChat = () => {
+    _viewerChatHistory = [];
+    renderChatHistory();
+};
+
+window.viewerChatKeypress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendViewerChat();
+    }
+};
+
+
 
 window.exportViewerPDF = () => {
     const s = _viewerCurrentSession;

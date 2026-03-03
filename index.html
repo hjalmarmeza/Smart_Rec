@@ -625,13 +625,79 @@
                 <!-- Transcript Section -->
                 <div class="glass-card p-6 rounded-3xl border border-white/5">
                     <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Transcripción</p>
-                    <div id="viewerTranscript" class="text-slate-400 text-xs leading-relaxed whitespace-pre-wrap">
+                    <div id="viewerTranscript" class="text-slate-400 text-xs leading-relaxed">
                         Cargando transcripción...
                     </div>
                 </div>
+
+                <!-- 💬 Chat con la Grabación -->
+                <div class="glass-card rounded-3xl border overflow-hidden" style="border-color: rgba(139,92,246,0.2);">
+                    <!-- Chat header -->
+                    <div class="flex items-center justify-between px-5 py-4 border-b"
+                        style="border-color: rgba(139,92,246,0.1); background: rgba(139,92,246,0.05);">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl flex items-center justify-center"
+                                style="background: linear-gradient(135deg,rgba(139,92,246,0.3),rgba(59,130,246,0.3)); border:1px solid rgba(139,92,246,0.3);">
+                                <span class="material-symbols-rounded text-sm text-violet-400">chat</span>
+                            </div>
+                            <div>
+                                <p class="text-[9px] font-black text-violet-400 uppercase tracking-widest">Fase 2</p>
+                                <p class="text-white font-black text-sm">Chat con la Grabación</p>
+                            </div>
+                        </div>
+                        <button onclick="clearViewerChat()"
+                            class="text-[8px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-all flex items-center gap-1">
+                            <span class="material-symbols-rounded text-xs">delete_sweep</span> Limpiar
+                        </button>
+                    </div>
+
+                    <!-- Suggested questions -->
+                    <div class="flex flex-wrap gap-2 px-5 pt-4">
+                        <button
+                            onclick="document.getElementById('viewerChatInput').value='¿Cuáles fueron las decisiones principales?'; sendViewerChat();"
+                            class="px-3 py-1.5 rounded-full text-[9px] font-black text-slate-400 hover:text-white transition-all"
+                            style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);">¿Decisiones
+                            principales?</button>
+                        <button
+                            onclick="document.getElementById('viewerChatInput').value='¿Qué tareas quedaron pendientes?'; sendViewerChat();"
+                            class="px-3 py-1.5 rounded-full text-[9px] font-black text-slate-400 hover:text-white transition-all"
+                            style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);">¿Tareas
+                            pendientes?</button>
+                        <button
+                            onclick="document.getElementById('viewerChatInput').value='Dame un resumen en 3 puntos.'; sendViewerChat();"
+                            class="px-3 py-1.5 rounded-full text-[9px] font-black text-slate-400 hover:text-white transition-all"
+                            style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);">Resumen
+                            en 3 puntos</button>
+                        <button
+                            onclick="document.getElementById('viewerChatInput').value='¿Quiénes participaron?'; sendViewerChat();"
+                            class="px-3 py-1.5 rounded-full text-[9px] font-black text-slate-400 hover:text-white transition-all"
+                            style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);">¿Quiénes
+                            participaron?</button>
+                    </div>
+
+                    <!-- Chat messages -->
+                    <div id="viewerChatBox" class="px-5 py-4 min-h-32 max-h-72 overflow-y-auto">
+                        <p class="text-slate-600 text-[10px] text-center uppercase tracking-widest mt-4">Haz una
+                            pregunta sobre esta grabación</p>
+                    </div>
+
+                    <!-- Chat input -->
+                    <div class="flex gap-2 px-4 pb-4">
+                        <input id="viewerChatInput" type="text" placeholder="¿Qué se decidió sobre el presupuesto?..."
+                            onkeydown="viewerChatKeypress(event)"
+                            class="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-slate-600 outline-none focus:border-violet-500/50 transition-all" />
+                        <button onclick="sendViewerChat()"
+                            class="w-11 h-11 flex items-center justify-center rounded-2xl transition-all hover:opacity-80"
+                            style="background: linear-gradient(135deg, #8B5CF6, #3B82F6);">
+                            <span class="material-symbols-rounded text-white text-base">send</span>
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
+
 
     <!-- Session Types Info Modal -->
     <div id="sessionTypesModal" class="fixed inset-0 z-[300] hidden flex items-center justify-center p-4"
@@ -808,7 +874,7 @@
     </div>
 
 
-    <script src="app.js?v=17.4"></script>
+    <script src="app.js?v=17.5"></script>
 </body>
 
 </html>
