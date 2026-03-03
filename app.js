@@ -777,7 +777,7 @@ window.generateViewerMindmap = async () => {
                 messages: [
                     {
                         role: 'system',
-                        content: 'Genera ÚNICAMENTE código Mermaid de tipo mindmap basado en el texto. REGLA FATAL: PROHIBIDO usar flechas (-->), corchetes ([ ]) o paréntesis. Solo texto plano con indentación. Responde SOLO el código mermaid, sin markdown ni explicaciones.'
+                        content: 'Genera ÚNICAMENTE código Mermaid de tipo mindmap. REGLA FATAL: PROHIBIDO usar flechas (-->), corchetes ([ ]) o paréntesis. Solo texto plano con indentación. Responde SOLO el código mermaid, sin markdown ni explicaciones.'
                     },
                     { role: 'user', content: `Genera un mindmap detallado de este contenido:\n\n${transcript.substring(0, 4000)}` }
                 ]
@@ -785,21 +785,19 @@ window.generateViewerMindmap = async () => {
         });
 
         progressBar.style.width = '90%';
-        if (!res.ok) throw new Error(`Error ${res.status}`);
+        if (!res.ok) throw new Error(`Error de API: ${res.status}`);
         const data = await res.json();
         let mermaidCode = data.choices[0].message.content.trim();
-        // Clean markdown fences if present
-        mermaidCode = mermaidCode.replace(/^```[a-z]*\n?/i, '').replace(/```$/, '').trim();
 
-        // Render mermaid inside the viewer
-        mmContainer.innerHTML = `<div class="mermaid">${mermaidCode}</div>`;
-        await mermaid.run({ nodes: mmContainer.querySelectorAll('.mermaid') });
+        // Set global and use the existing openMindmap() which has all the scrubbing logic
+        currentMindmapCode = mermaidCode;
 
-        mmSection.classList.remove('hidden');
-        mmSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         progressBar.style.width = '100%';
-        progressLabel.innerText = '¡Mapa Mental generado!';
-        setTimeout(() => progress.classList.add('hidden'), 1500);
+        progressLabel.innerText = '¡Mapa listo! Abriendo...';
+        setTimeout(() => {
+            progress.classList.add('hidden');
+            openMindmap();
+        }, 400);
 
     } catch (err) {
         progressLabel.innerText = 'Error: ' + err.message;
@@ -852,22 +850,29 @@ window.generateViewerSlides = async () => {
         });
 
         progressBar.style.width = '90%';
-        if (!res.ok) throw new Error(`Error ${res.status}`);
+        if (!res.ok) throw new Error(`Error de API: ${res.status}`);
         const data = await res.json();
-        const parsed = JSON.parse(data.choices[0].message.content);
 
-        if (!parsed.slides || !Array.isArray(parsed.slides) || parsed.slides.length === 0) {
-            throw new Error('La IA no generó diapositivas válidas.');
+        // Safe JSON parse: API may return string or already-parsed object
+        let rawContent = data.choices[0].message.content;
+        let parsed;
+        if (typeof rawContent === 'string') {
+            const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : rawContent);
+        } else {
+            parsed = rawContent; // already an object
         }
 
-        // Load slides into the global presenter
+        if (!parsed.slides || !Array.isArray(parsed.slides) || parsed.slides.length === 0) {
+            throw new Error('La IA no generó diapositivas válidas. Intenta de nuevo.');
+        }
+
         currentSlides = parsed.slides;
         activeSlideIndex = 0;
         progressBar.style.width = '100%';
-        progressLabel.innerText = '¡Presentación lista!';
+        progressLabel.innerText = `¡${parsed.slides.length} diapositivas listas!`;
         setTimeout(() => {
             progress.classList.add('hidden');
-            // Open the slides modal (close viewer first to avoid z-index conflicts)
             openSlides();
         }, 600);
 
